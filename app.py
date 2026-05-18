@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """
-AI金融决策智能体 — Web演示界面
-2026江汉区AI智能体创新大赛 | AI＋垂直应用（金融科技）
+AI金融决策智能体 — 量化分析系统
 """
 
 import streamlit as st
@@ -1521,7 +1520,7 @@ def main():
                     st.metric(label=k, value=str(v)[:16])
 
     st.divider()
-    st.markdown('<p style="text-align:center;color:#94A3B8;font-size:0.8rem;">AI金融决策智能体 · 六层异构数据融合 · 28因子量化评分 · Piotroski · VaR · 凯利公式 | 江汉区AI智能体创新大赛</p>', unsafe_allow_html=True)
+    st.markdown('<p style="text-align:center;color:#94A3B8;font-size:0.8rem;">AI金融决策智能体 · 28因子量化评分 · Piotroski · VaR · 凯利公式</p>', unsafe_allow_html=True)
 
 
 if __name__ == "__main__":
