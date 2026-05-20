@@ -1428,12 +1428,56 @@ def main():
     render_header()
     st.divider()
 
+    # ── 顶部滚动雷达条 ──
+    from radar import get_top_opportunities
+    tops = get_top_opportunities(get_quotes_engine())
+    if tops:
+        html_parts = []
+        for s in tops:
+            score_color = "#EF4444" if s["score"] >= 85 else "#F59E0B" if s["score"] >= 75 else "#3B82F6"
+            chg = s.get("change_pct", 0)
+            chg_color = "#EF4444" if chg > 0 else "#10B981"
+            html_parts.append(
+                f'<span style="display:inline-block;margin-right:24px;white-space:nowrap;">'
+                f'<b>{s["name"]}</b> <span style="color:{score_color};">⭐{s["score"]}</span> '
+                f'<span style="color:{chg_color};">{chg:+.1f}%</span> '
+                f'<span style="color:#64748B;font-size:0.75rem;">{s.get("reason","")[:20]}</span>'
+                f'</span>'
+            )
+        ticker_html = " · ".join(html_parts)
+        st.markdown(f"""
+        <div style="background:#0d1520;border:1px solid #1a2744;border-radius:8px;padding:0.6rem 1rem;overflow:hidden;margin-bottom:0.8rem;">
+            <marquee behavior="scroll" direction="left" scrollamount="4" onmouseover="this.stop()" onmouseout="this.start()"
+                     style="color:#94a3b8;font-size:0.85rem;font-family:'Inter',sans-serif;">
+                🔴 交易机会雷达 · 最后更新 {datetime.now().strftime('%H:%M')} &nbsp;&nbsp;|&nbsp;&nbsp; {ticker_html}
+            </marquee>
+        </div>
+        """, unsafe_allow_html=True)
+
+    # ── Tabs ──
     tab1, tab2, tab3, tab4, tab5 = st.tabs([
-        "📊 单股分析", "🔭 全市场扫描", "🤖 AI分析", "🔴 交易雷达", "📊 组合仪表"
+        "📊 单股分析", "🔭 全市场扫描", "🔴 交易雷达", "📊 组合仪表", "🇨🇳 A股特色"
     ])
 
+    # tab2/3/4/5 放在前面，避免 tab1 的 return 阻断
     with tab2:
         render_market_scan()
+
+    with tab3:
+        from radar import render_radar
+        render_radar(get_quotes_engine(), None)
+
+    with tab4:
+        from dashboard import render_dashboard
+        render_dashboard()
+
+    with tab5:
+        from ashare_panels import render_sector_heatmap, render_north_money, render_dragon_tiger
+        render_sector_heatmap()
+        st.markdown("---")
+        render_north_money()
+        st.markdown("---")
+        render_dragon_tiger()
 
     with tab1:
         # 输入区
@@ -1498,9 +1542,14 @@ def main():
             """, unsafe_allow_html=True)
 
         # K线图（两种模式都显示）
-        st.markdown('<p class="section-title">📉 技术分析 — K线图（含支撑/阻力位）</p>', unsafe_allow_html=True)
+        st.markdown('<p class="section-title">📉 技术分析 — K线图（MA/MACD/BOLL/成交量）</p>', unsafe_allow_html=True)
         kline = fetch_kline(symbol)
-        render_kline(kline, result.get("entry_zone"), result.get("exit_zone"))
+        from pro_kline import render_pro_kline
+        kline_fig = render_pro_kline(kline, result.get("entry_zone"), result.get("exit_zone"))
+        if kline_fig:
+            st.plotly_chart(kline_fig, use_container_width=True)
+        else:
+            st.info("暂无K线数据")
 
         # 新闻
         st.markdown('<p class="section-title">📰 相关新闻</p>', unsafe_allow_html=True)
@@ -1521,30 +1570,8 @@ def main():
                 with fcols[i % 4]:
                     st.metric(label=k, value=str(v)[:16])
 
-    with tab3:
-        from ai_analysis import render_ai_analysis
-        # 需要先做单股分析拿到数据
-        symbol_default = st.text_input("股票代码", placeholder="600036", key="ai_symbol").strip()
-        symbol_default = _resolve_symbol(symbol_default)
-        if st.button("🤖 生成AI分析报告", type="primary", key="ai_btn") and symbol_default:
-            with st.spinner(f"正在获取 {symbol_default} 数据..."):
-                q = fetch_quote(symbol_default)
-                k = fetch_kline(symbol_default)
-                r = analyze(symbol_default)
-            render_ai_analysis(q, k, r.get("total") if "total" in r else None)
-        elif not symbol_default:
-            st.info("👆 输入股票代码，点击按钮生成 AI 深度分析报告")
-
-    with tab4:
-        from radar import render_radar
-        render_radar(get_quotes_engine(), None)
-
-    with tab5:
-        from dashboard import render_dashboard
-        render_dashboard()
-
     st.divider()
-    st.markdown('<p style="text-align:center;color:#94A3B8;font-size:0.8rem;">AI金融决策智能体 · 28因子量化评分 · 交易雷达 · AI分析 · 组合仪表</p>', unsafe_allow_html=True)
+    st.markdown('<p style="text-align:center;color:#94A3B8;font-size:0.8rem;">AI金融决策智能体 · 28因子量化评分 · 交易雷达 · AI分析 · 组合仪表</p>')
 
 
 if __name__ == "__main__":
