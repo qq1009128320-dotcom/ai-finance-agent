@@ -1428,7 +1428,9 @@ def main():
     render_header()
     st.divider()
 
-    tab1, tab2 = st.tabs(["📊 单股分析", "🔭 全市场扫描"])
+    tab1, tab2, tab3, tab4, tab5 = st.tabs([
+        "📊 单股分析", "🔭 全市场扫描", "🤖 AI分析", "🔴 交易雷达", "📊 组合仪表"
+    ])
 
     with tab2:
         render_market_scan()
@@ -1519,8 +1521,30 @@ def main():
                 with fcols[i % 4]:
                     st.metric(label=k, value=str(v)[:16])
 
+    with tab3:
+        from ai_analysis import render_ai_analysis
+        # 需要先做单股分析拿到数据
+        symbol_default = st.text_input("股票代码", placeholder="600036", key="ai_symbol").strip()
+        symbol_default = _resolve_symbol(symbol_default)
+        if st.button("🤖 生成AI分析报告", type="primary", key="ai_btn") and symbol_default:
+            with st.spinner(f"正在获取 {symbol_default} 数据..."):
+                q = fetch_quote(symbol_default)
+                k = fetch_kline(symbol_default)
+                r = analyze(symbol_default)
+            render_ai_analysis(q, k, r.get("total") if "total" in r else None)
+        elif not symbol_default:
+            st.info("👆 输入股票代码，点击按钮生成 AI 深度分析报告")
+
+    with tab4:
+        from radar import render_radar
+        render_radar(get_quotes_engine(), None)
+
+    with tab5:
+        from dashboard import render_dashboard
+        render_dashboard()
+
     st.divider()
-    st.markdown('<p style="text-align:center;color:#94A3B8;font-size:0.8rem;">AI金融决策智能体 · 28因子量化评分 · Piotroski · VaR · 凯利公式</p>', unsafe_allow_html=True)
+    st.markdown('<p style="text-align:center;color:#94A3B8;font-size:0.8rem;">AI金融决策智能体 · 28因子量化评分 · 交易雷达 · AI分析 · 组合仪表</p>', unsafe_allow_html=True)
 
 
 if __name__ == "__main__":
