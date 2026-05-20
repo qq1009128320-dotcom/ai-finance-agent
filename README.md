@@ -45,6 +45,8 @@ data/quotes.py      # 腾讯财经行情数据层 (零依赖)
 
 ## 快速开始
 
+**Python 版本要求: >= 3.10**
+
 ```bash
 # 1. 安装依赖
 pip install -r requirements.txt
@@ -55,6 +57,13 @@ streamlit run app.py --server.port 8501
 # 3. 打开浏览器
 # http://localhost:8501
 ```
+
+> ⚠️ **端口占用**: 如果 8501 端口已被占用，可指定其他端口启动：
+> ```bash
+> streamlit run app.py --server.port 8502
+> ```
+>
+> ⚠️ **首次启动提示**: akshare 首次运行时会自动下载股票列表等基础数据，可能需要等待 10-30 秒，后续启动将使用缓存数据，速度更快。
 
 ## 使用说明
 
