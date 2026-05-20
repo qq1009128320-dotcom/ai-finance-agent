@@ -1464,8 +1464,8 @@ def main():
         render_market_scan()
 
     with tab3:
-        from radar import render_radar
-        render_radar(get_quotes_engine(), None)
+        from radar import render_radar as render_trading_radar
+        render_trading_radar(get_quotes_engine(), None)
 
     with tab4:
         from dashboard import render_dashboard
@@ -1571,7 +1571,7 @@ def main():
                     st.metric(label=k, value=str(v)[:16])
 
     st.divider()
-    st.markdown('<p style="text-align:center;color:#94A3B8;font-size:0.8rem;">AI金融决策智能体 · 28因子量化评分 · 交易雷达 · AI分析 · 组合仪表</p>')
+    st.markdown('<p style="text-align:center;color:#94A3B8;font-size:0.8rem;">AI金融决策智能体 · 28因子量化评分 · 交易雷达 · 组合仪表</p>', unsafe_allow_html=True)
 
 
 if __name__ == "__main__":
