@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  # FastAPI 后端
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: ai-quant-backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./strategies:/app/strategies
+      - ./data:/app/data
+    environment:
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+      - TUSHARE_TOKEN=${TUSHARE_TOKEN}
+    restart: unless-stopped
+    networks:
+      - ai-quant-network
+
+  # Vue 3 前端
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: ../Dockerfile.frontend
+    container_name: ai-quant-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - ai-quant-network
+
+networks:
+  ai-quant-network:
+    driver: bridge
