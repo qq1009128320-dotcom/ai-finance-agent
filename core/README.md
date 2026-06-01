@@ -1,5 +1,5 @@
 """
-AI Quantitative Strategy Platform v4 - Backend Core
+AI智投量化平台 v4 - Backend Core
 FastAPI 后端服务架构
 
 目录结构:

@@ -1,4 +1,4 @@
-# AI量化策略平台 - 前端
+# AI智投量化平台 - 前端
 
 Vue 3 + Vite + TypeScript 前端项目
 

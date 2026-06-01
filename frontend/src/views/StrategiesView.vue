@@ -1,38 +1,77 @@
 <template>
   <div class="strategies-view">
     <h1 class="page-title">📚 策略库</h1>
+    <p class="page-subtitle">管理您的私有量化策略模型，查看历史表现并进行深度回测</p>
 
-    <div class="strategies-header">
-      <p>已保存的策略列表，可编辑、回测、删除</p>
+    <!-- 搜索与筛选 -->
+    <div class="strategies-header card">
+      <div class="flex items-center gap-md" style="flex-wrap: wrap;">
+        <input
+          v-model="searchQuery"
+          type="text"
+          class="input"
+          placeholder="🔍 搜索策略..."
+          style="flex: 1; min-width: 200px; max-width: 300px;"
+        />
+        <select v-model="filterTag" class="input" style="max-width: 150px;">
+          <option value="">所有标签</option>
+          <option value="conservative">保守型</option>
+          <option value="balanced">平衡型</option>
+          <option value="aggressive">激进型</option>
+        </select>
+        <button class="btn btn-primary" @click="refreshStrategies">
+          🔄 刷新
+        </button>
+      </div>
     </div>
 
+    <!-- 加载状态 -->
     <div v-if="loading" class="loading">
       <div class="spinner"></div>
       <p>加载中...</p>
     </div>
 
-    <div v-else-if="strategies.length === 0" class="empty-state">
-      <p>暂无策略，请在「AI策略」页面生成并保存</p>
+    <!-- 空状态 -->
+    <div v-else-if="filteredStrategies.length === 0" class="empty-state">
+      <div class="empty-state-icon">📚</div>
+      <p>{{ searchQuery || filterTag ? '未找到匹配的策略' : '暂无策略，请在「AI策略」页面生成并保存' }}</p>
     </div>
 
+    <!-- 策略列表 -->
     <div v-else class="strategies-list">
-      <div v-for="strategy in strategies" :key="strategy.id" class="strategy-card card">
+      <div v-for="strategy in filteredStrategies" :key="strategy.id" class="strategy-card card">
         <div class="strategy-header">
-          <h3>{{ strategy.name }}</h3>
-          <div class="strategy-tags">
-            <span v-for="tag in strategy.tags" :key="tag" class="tag">{{ tag }}</span>
+          <div class="flex items-center gap-md">
+            <h3 style="font-size: 18px; font-weight: 600;">{{ strategy.name }}</h3>
+            <span v-for="tag in strategy.tags" :key="tag" class="badge badge-primary">{{ tag }}</span>
+          </div>
+          <div class="strategy-version">
+            <span class="text-muted" style="font-size: 12px;">v{{ strategy.version }}</span>
           </div>
         </div>
-        
-        <div class="strategy-meta">
+
+        <p class="strategy-desc" style="font-size: 13px; color: var(--text-secondary); margin: var(--space-sm) 0;">
+          {{ strategy.description || '暂无描述' }}
+        </p>
+
+        <div class="strategy-meta flex items-center gap-md" style="font-size: 12px; color: var(--text-muted);">
           <span>📅 {{ formatDate(strategy.created_at) }}</span>
-          <span>📝 v{{ strategy.version }}</span>
+          <span>🕐 {{ formatTime(strategy.updated_at) }}</span>
         </div>
 
-        <div class="strategy-actions">
-          <button class="btn btn-secondary btn-sm" @click="viewStrategy(strategy)">查看</button>
-          <button class="btn btn-secondary btn-sm" @click="runBacktest(strategy)">回测</button>
-          <button class="btn btn-danger btn-sm" @click="deleteStrategy(strategy.id)">删除</button>
+        <div class="strategy-actions flex gap-sm" style="margin-top: var(--space-md);">
+          <button class="btn btn-secondary btn-sm" @click="viewStrategy(strategy)">
+            👁️ 查看
+          </button>
+          <button class="btn btn-secondary btn-sm" @click="runBacktest(strategy)">
+            📊 回测
+          </button>
+          <button class="btn btn-secondary btn-sm" @click="editStrategy(strategy)">
+            ✏️ 编辑
+          </button>
+          <button class="btn btn-danger btn-sm" @click="deleteStrategy(strategy.id)">
+            🗑️ 删除
+          </button>
         </div>
       </div>
     </div>
@@ -40,24 +79,30 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { strategyApi } from '@/api'
 import { useAppStore } from '@/stores/app'
 import type { Strategy } from '@/stores/app'
 
+const router = useRouter()
 const store = useAppStore()
-const strategies = ref<Strategy[]>([])
-const loading = ref(true)
 
-onMounted(async () => {
-  await loadStrategies()
+const loading = ref(false)
+const searchQuery = ref('')
+const filterTag = ref('')
+const strategies = ref<Strategy[]>([])
+
+onMounted(() => {
+  refreshStrategies()
 })
 
-async function loadStrategies() {
+async function refreshStrategies() {
+  loading.value = true
   try {
     const response = await strategyApi.list()
-    strategies.value = response.data.strategies
-    store.setStrategies(response.data.strategies)
+    strategies.value = response.data
+    store.setStrategies(response.data)
   } catch (err) {
     console.error('加载策略失败', err)
   } finally {
@@ -65,107 +110,103 @@ async function loadStrategies() {
   }
 }
 
+const filteredStrategies = computed(() => {
+  let list = strategies.value
+
+  if (searchQuery.value) {
+    const q = searchQuery.value.toLowerCase()
+    list = list.filter(s =>
+      s.name.toLowerCase().includes(q) ||
+      s.code.toLowerCase().includes(q) ||
+      (s.description?.toLowerCase().includes(q) ?? false)
+    )
+  }
+
+  if (filterTag.value) {
+    list = list.filter(s => s.tags.includes(filterTag.value))
+  }
+
+  return list
+})
+
 function formatDate(isoString: string): string {
-  return new Date(isoString).toLocaleDateString('zh-CN')
+  const d = new Date(isoString)
+  return d.toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' })
+}
+
+function formatTime(isoString: string): string {
+  const d = new Date(isoString)
+  return d.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
 }
 
 function viewStrategy(strategy: Strategy) {
-  // 跳转到AI策略页面并加载代码
-  store.setGeneratedCode(strategy.code)
-  store.setSymbol(strategy.id) // 临时用id标识
-  window.location.href = '/ai-strategy'
-}
-
-async function deleteStrategy(id: string) {
-  if (!confirm('确定删除此策略？')) return
-  
-  try {
-    await strategyApi.delete(id)
-    store.removeStrategy(id)
-  } catch (err) {
-    alert('删除失败')
-  }
+  // 查看策略详情 — 可以打开一个模态框或跳转到详情页
+  alert(`策略：${strategy.name}\n代码预览：\n${strategy.code.substring(0, 200)}...`)
 }
 
 function runBacktest(strategy: Strategy) {
   store.setGeneratedCode(strategy.code)
-  window.location.href = '/backtest'
+  router.push(`/backtest`)
+}
+
+function editStrategy(strategy: Strategy) {
+  store.setGeneratedCode(strategy.code)
+  router.push(`/ai-strategy`)
+}
+
+async function deleteStrategy(id: string) {
+  if (!confirm('确定要删除这个策略吗？此操作不可恢复。')) return
+
+  try {
+    await strategyApi.delete(id)
+    strategies.value = strategies.value.filter(s => s.id !== id)
+    store.removeStrategy(id)
+  } catch (err: any) {
+    store.setError(err.response?.data?.detail || '删除失败')
+  }
 }
 </script>
 
 <style scoped>
 .strategies-view {
-  max-width: 1000px;
-}
-
-.page-title {
-  font-size: 28px;
-  margin-bottom: 24px;
+  max-width: 1400px;
 }
 
 .strategies-header {
-  margin-bottom: 24px;
-  color: var(--text-secondary);
+  margin-bottom: var(--space-lg);
 }
 
 .strategies-list {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+  gap: var(--space-lg);
 }
 
 .strategy-card {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  padding: var(--space-lg);
 }
 
 .strategy-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
 }
 
-.strategy-header h3 {
-  font-size: 18px;
-}
-
-.strategy-tags {
-  display: flex;
-  gap: 8px;
-}
-
-.tag {
-  display: inline-block;
-  padding: 4px 12px;
-  background: var(--bg-card-hover);
-  border-radius: 999px;
-  font-size: 12px;
-  color: var(--text-secondary);
-}
-
-.strategy-meta {
-  display: flex;
-  gap: 24px;
-  color: var(--text-muted);
-  font-size: 13px;
+.strategy-version {
+  font-family: 'Fira Code', monospace;
 }
 
 .strategy-actions {
-  display: flex;
-  gap: 8px;
-  padding-top: 12px;
-  border-top: 1px solid var(--border-color);
+  flex-wrap: wrap;
 }
 
-.btn-sm {
-  padding: 6px 12px;
-  font-size: 13px;
-}
-
-.empty-state {
-  text-align: center;
-  padding: 60px 20px;
-  color: var(--text-muted);
+@media (max-width: 600px) {
+  .strategies-list {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

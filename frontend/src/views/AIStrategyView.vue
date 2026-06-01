@@ -1,26 +1,25 @@
 <template>
   <div class="ai-strategy-view">
     <h1 class="page-title">🤖 AI策略生成器</h1>
-    
-    <div class="intro-card card">
-      <p>用自然语言描述你想要的交易策略，AI会自动生成可执行的Python策略代码。</p>
-      <p class="example">示例：当5日均线上穿20日均线时买入，下穿时卖出，止损8%，止盈25%</p>
-    </div>
+    <p class="page-subtitle">用自然语言描述策略，AI自动生成可执行的Python代码</p>
 
-    <div class="strategy-editor">
-      <!-- 左侧：输入区 -->
-      <div class="editor-panel">
-        <h2>策略描述</h2>
-        
-        <textarea
-          v-model="prompt"
-          class="input prompt-input"
-          placeholder="描述你的策略..."
-          rows="6"
-        ></textarea>
+    <!-- 输入区 -->
+    <div class="editor-layout">
+      <!-- 左侧：输入 -->
+      <div class="editor-panel card">
+        <h2 class="card-title">💬 策略描述</h2>
 
-        <div class="style-selector">
-          <label>策略风格：</label>
+        <div class="form-group">
+          <textarea
+            v-model="prompt"
+            class="textarea prompt-input"
+            placeholder="描述你的策略，例如：当5日均线上穿20日均线时买入，下穿时卖出，止损8%，止盈25%..."
+            rows="6"
+          ></textarea>
+        </div>
+
+        <div class="form-group">
+          <label>策略风格</label>
           <select v-model="style" class="input">
             <option value="conservative">🛡️ 保守型（严格止损）</option>
             <option value="balanced">⚖️ 平衡型（风险收益均衡）</option>
@@ -29,26 +28,26 @@
         </div>
 
         <div class="btn-group">
-          <button class="btn btn-primary" @click="handleGenerate" :disabled="generating">
-            {{ generating ? '生成中...' : '✨ 生成策略' }}
+          <button class="btn btn-primary" @click="handleGenerate" :disabled="generating" style="flex: 1;">
+            {{ generating ? '⏳ 生成中...' : '✨ 生成策略' }}
           </button>
-          <button class="btn btn-secondary" @click="handleClear">清空</button>
+          <button class="btn btn-secondary" @click="handleClear">🗑️ 清空</button>
         </div>
 
         <!-- 示例策略 -->
-        <div class="examples">
-          <h3>快速加载示例</h3>
-          <div class="example-buttons">
-            <button class="btn btn-secondary btn-sm" @click="loadExample('ma')">均线金叉</button>
-            <button class="btn btn-secondary btn-sm" @click="loadExample('rsi')">RSI动量</button>
+        <div class="examples" style="margin-top: var(--space-lg); padding-top: var(--space-lg); border-top: 1px solid var(--border);">
+          <h3 style="font-size: 14px; margin-bottom: var(--space-sm); color: var(--text-secondary);">快速加载示例</h3>
+          <div class="btn-group">
+            <button class="btn btn-secondary btn-sm" @click="loadExample('ma')">📐 均线金叉</button>
+            <button class="btn btn-secondary btn-sm" @click="loadExample('rsi')">📊 RSI动量</button>
           </div>
         </div>
       </div>
 
-      <!-- 右侧：代码区 -->
-      <div class="editor-panel">
-        <h2>策略代码</h2>
-        
+      <!-- 右侧：代码 -->
+      <div class="editor-panel card">
+        <h2 class="card-title">💻 策略代码</h2>
+
         <div v-if="generating" class="loading">
           <div class="spinner"></div>
           <p>AI正在思考策略...</p>
@@ -57,19 +56,19 @@
         <div v-else-if="generatedCode" class="code-container">
           <div class="code-header">
             <span class="code-title">Python</span>
-            <span :class="isValid ? 'status-valid' : 'status-invalid'">
+            <span :class="isValid ? 'badge badge-success' : 'badge badge-danger'">
               {{ isValid ? '✓ 代码有效' : '✗ 代码无效' }}
             </span>
           </div>
           <pre class="code-editor"><code>{{ generatedCode }}</code></pre>
-          
-          <div class="code-actions">
-            <input v-model="strategyName" type="text" class="input" placeholder="策略名称" />
+
+          <div class="code-actions" style="display: flex; gap: var(--space-sm); margin: var(--space-md);">
+            <input v-model="strategyName" type="text" class="input" placeholder="策略名称" style="flex: 1;" />
             <button class="btn btn-primary" @click="handleSave">💾 保存</button>
           </div>
         </div>
 
-        <div v-else class="empty-code">
+        <div v-else class="empty-state" style="padding: 40px 20px;">
           <p>👈 在左侧输入策略描述，点击「生成策略」</p>
         </div>
       </div>
@@ -77,31 +76,33 @@
 
     <!-- 回测区 -->
     <div v-if="generatedCode" class="backtest-section card">
-      <h2>📊 策略回测</h2>
-      
-      <div class="backtest-form">
-        <input v-model="backtestSymbol" type="text" class="input" placeholder="回测标的（如 600036）" />
+      <h2 class="card-title">📊 策略回测</h2>
+
+      <div class="backtest-form flex gap-md" style="align-items: center;">
+        <input v-model="backtestSymbol" type="text" class="input" placeholder="回测标的（如 600036）" style="flex: 1;" />
         <button class="btn btn-primary" @click="handleBacktest" :disabled="backtesting">
-          {{ backtesting ? '回测中...' : '运行回测' }}
+          {{ backtesting ? '⏳ 回测中...' : '▶ 运行回测' }}
         </button>
       </div>
 
-      <div v-if="backtestResult" class="backtest-result">
-        <div class="metric-grid">
+      <div v-if="backtestResult" class="backtest-result" style="margin-top: var(--space-lg);">
+        <div class="metric-grid" style="margin-bottom: 0;">
           <div class="metric-card">
-            <div class="metric-value">{{ backtestResult.metrics.total_return }}%</div>
+            <div class="metric-value" :class="((backtestResult.metrics.total_return ?? 0) >= 0) ? 'positive' : 'negative'">
+              {{ backtestResult.metrics.total_return ?? 'N/A' }}%
+            </div>
             <div class="metric-label">总收益率</div>
           </div>
           <div class="metric-card">
-            <div class="metric-value">{{ backtestResult.metrics.total_trades }}</div>
+            <div class="metric-value">{{ backtestResult.metrics.total_trades ?? 0 }}</div>
             <div class="metric-label">交易次数</div>
           </div>
           <div class="metric-card">
-            <div class="metric-value">{{ backtestResult.metrics.buy_count }}</div>
+            <div class="metric-value">{{ backtestResult.metrics.buy_count ?? 0 }}</div>
             <div class="metric-label">买入次数</div>
           </div>
           <div class="metric-card">
-            <div class="metric-value">{{ backtestResult.metrics.sell_count }}</div>
+            <div class="metric-value">{{ backtestResult.metrics.sell_count ?? 0 }}</div>
             <div class="metric-label">卖出次数</div>
           </div>
         </div>
@@ -114,7 +115,7 @@
 import { ref } from 'vue'
 import { aiApi, strategyApi, backtestApi } from '@/api'
 import { useAppStore } from '@/stores/app'
-import type { BacktestResult, Strategy } from '@/stores/app'
+import type { BacktestResult } from '@/stores/app'
 
 const store = useAppStore()
 
@@ -162,7 +163,7 @@ def handle_data(context, data):
             sell(symbol, current_price, "止盈")
         elif current_price <= cost * (1 + context.stop_loss):
             sell(symbol, current_price, "止损")`,
-  
+
   rsi: `def init(context):
     context.symbol = "600036"
     context.rsi_period = 14
@@ -197,24 +198,30 @@ def handle_data(context, data):
         if current_price >= cost * (1 + context.take_profit):
             sell(symbol, current_price, "止盈")
         elif current_price <= cost * (1 + context.stop_loss):
-            sell(symbol, current_price, "止损")
-        elif rsi > context.rsi_overbought:
-            sell(symbol, current_price, f"RSI超买 {rsi:.1f}")`
+            sell(symbol, current_price, "止损")`
+}
+
+function loadExample(type: string) {
+  prompt.value = type === 'ma'
+    ? '当5日均线上穿20日均线时买入，下穿时卖出，止损8%，止盈25%'
+    : '当RSI低于30时买入，高于70时卖出，止损8%，止盈25%'
+  generatedCode.value = examples[type]
+  isValid.value = true
 }
 
 async function handleGenerate() {
-  if (!prompt.value.trim()) return
-  
+  if (!prompt.value.trim()) {
+    store.setError('请输入策略描述')
+    return
+  }
+
   generating.value = true
-  
+  generatedCode.value = ''
+
   try {
-    const response = await aiApi.generate({
-      prompt: prompt.value,
-      style: style.value
-    })
-    
+    const response = await aiApi.generate({ prompt: prompt.value, style: style.value })
     generatedCode.value = response.data.code
-    isValid.value = response.data.is_valid
+    isValid.value = response.data.valid ?? true
     store.setGeneratedCode(response.data.code)
   } catch (err: any) {
     store.setError(err.response?.data?.detail || '生成失败')
@@ -231,44 +238,43 @@ function handleClear() {
   backtestResult.value = null
 }
 
-function loadExample(name: string) {
-  if (examples[name]) {
-    generatedCode.value = examples[name]
-    isValid.value = true
-  }
-}
-
 async function handleSave() {
-  if (!strategyName.value.trim() || !generatedCode.value) return
-  
+  if (!generatedCode.value.trim()) {
+    store.setError('没有可保存的代码')
+    return
+  }
+  if (!strategyName.value.trim()) {
+    store.setError('请输入策略名称')
+    return
+  }
+
   try {
-    const response = await strategyApi.create({
+    await strategyApi.create({
       name: strategyName.value,
       code: generatedCode.value,
       tags: [style.value]
     })
-    
-    store.addStrategy(response.data)
-    alert('策略已保存！')
+    store.setError(null)
+    alert('✅ 策略已保存')
   } catch (err: any) {
-    alert('保存失败: ' + (err.response?.data?.detail || err.message))
+    store.setError(err.response?.data?.detail || '保存失败')
   }
 }
 
 async function handleBacktest() {
   if (!backtestSymbol.value.trim()) {
-    alert('请输入回测标的')
+    store.setError('请输入回测标的')
     return
   }
-  
+
   backtesting.value = true
-  
+  backtestResult.value = null
+
   try {
-    const response = await backtestApi.run({
+    const response = await backtestApi.validateAndRun({
       code: generatedCode.value,
       symbol: backtestSymbol.value
     })
-    
     backtestResult.value = response.data
     store.setBacktestResult(response.data)
   } catch (err: any) {
@@ -284,29 +290,10 @@ async function handleBacktest() {
   max-width: 1400px;
 }
 
-.page-title {
-  font-size: 28px;
-  margin-bottom: 24px;
-}
-
-.intro-card {
-  margin-bottom: 24px;
-}
-
-.intro-card p {
-  margin-bottom: 8px;
-}
-
-.example {
-  color: var(--text-secondary);
-  font-style: italic;
-}
-
-.strategy-editor {
+.editor-layout {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 24px;
-  margin-bottom: 24px;
+  gap: var(--space-lg);
 }
 
 .editor-panel {
@@ -314,133 +301,23 @@ async function handleBacktest() {
   flex-direction: column;
 }
 
-.editor-panel h2 {
-  font-size: 18px;
-  margin-bottom: 16px;
-  color: var(--text-primary);
-}
-
 .prompt-input {
-  resize: vertical;
-  margin-bottom: 16px;
-}
-
-.style-selector {
-  margin-bottom: 16px;
-}
-
-.style-selector label {
-  display: block;
-  margin-bottom: 8px;
-  color: var(--text-secondary);
-  font-size: 14px;
-}
-
-.btn-group {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 24px;
-}
-
-.examples {
-  margin-top: auto;
-  padding-top: 16px;
-  border-top: 1px solid var(--border-color);
-}
-
-.examples h3 {
-  font-size: 14px;
-  color: var(--text-secondary);
-  margin-bottom: 12px;
-}
-
-.example-buttons {
-  display: flex;
-  gap: 8px;
-}
-
-.btn-sm {
-  padding: 6px 12px;
-  font-size: 13px;
-}
-
-.code-container {
-  display: flex;
-  flex-direction: column;
-}
-
-.code-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 16px;
-  background: var(--bg-dark);
-  border: 1px solid var(--border-color);
-  border-bottom: none;
-  border-radius: var(--radius) var(--radius) 0 0;
-}
-
-.code-title {
-  color: var(--text-secondary);
-  font-size: 13px;
-}
-
-.status-valid {
-  color: var(--success);
-  font-size: 13px;
-}
-
-.status-invalid {
-  color: var(--danger);
-  font-size: 13px;
-}
-
-.code-editor {
-  border-radius: 0 0 var(--radius) var(--radius);
-  min-height: 300px;
-  margin-bottom: 16px;
-}
-
-.code-editor code {
-  white-space: pre;
-}
-
-.code-actions {
-  display: flex;
-  gap: 12px;
+  font-family: inherit;
 }
 
 .code-actions .input {
   flex: 1;
-}
-
-.empty-code {
-  text-align: center;
-  padding: 60px 20px;
-  color: var(--text-muted);
-}
-
-.backtest-section {
-  margin-top: 24px;
-}
-
-.backtest-section h2 {
-  font-size: 18px;
-  margin-bottom: 16px;
-}
-
-.backtest-form {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 24px;
+  min-width: 0;
 }
 
 .backtest-form .input {
   flex: 1;
-  max-width: 300px;
+  min-width: 0;
 }
 
-.backtest-result {
-  margin-top: 16px;
+@media (max-width: 900px) {
+  .editor-layout {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

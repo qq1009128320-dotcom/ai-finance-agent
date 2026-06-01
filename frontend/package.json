@@ -1,7 +1,8 @@
 {
-  "name": "ai-quant-strategy-platform-frontend",
+  "name": "ai-zhitou-quant-platform-frontend",
   "version": "4.0.0",
   "private": true,
+  "description": "AI智投量化平台 - 前端",
   "type": "module",
   "scripts": {
     "dev": "vite",

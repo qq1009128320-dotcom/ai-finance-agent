@@ -1,5 +1,5 @@
 """
-AI Quantitative Strategy Platform v4 - API v1 Endpoints Package
+AI智投量化平台 v4 - API v1 Endpoints Package
 """
 
 from api.v1.endpoints import quant, strategy, backtest, health

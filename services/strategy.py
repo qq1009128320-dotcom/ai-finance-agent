@@ -1,5 +1,5 @@
 """
-AI Quantitative Strategy Platform v4 - Strategy Management Service
+AI智投量化平台 v4 - Strategy Management Service
 """
 
 import sys

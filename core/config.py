@@ -1,5 +1,5 @@
 """
-AI Quantitative Strategy Platform v4 - Backend Configuration
+AI智投量化平台 v4 - Backend Configuration
 """
 
 import os
@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     """应用配置"""
     
     # 应用
-    APP_NAME: str = "AI Quantitative Strategy Platform"
+    APP_NAME: str = "AI智投量化平台"
     APP_VERSION: str = "4.0.0"
     DEBUG: bool = True
     

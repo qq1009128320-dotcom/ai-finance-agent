@@ -1,5 +1,5 @@
 """
-AI Quantitative Strategy Platform v4 - Quantitative Analysis Service
+AI智投量化平台 v4 - Quantitative Analysis Service
 """
 
 import sys
@@ -25,9 +25,9 @@ class QuantService:
     """量化分析服务"""
     
     def __init__(self):
-        # 导入量化引擎
-        from quant_engine import QuantAnalysisEngine, run_analysis
-        self.quant_engine = QuantAnalysisEngine()
+        # 导入量化引擎 — run_analysis 是便捷入口，按需创建引擎
+        from quant_engine import run_analysis
+        self._quant_engine_module_ready = True
     
     def analyze_stock(self, request: QuantAnalysisRequest) -> QuantAnalysisResponse:
         """

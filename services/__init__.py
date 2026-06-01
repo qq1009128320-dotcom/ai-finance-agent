@@ -1,5 +1,5 @@
 """
-AI Quantitative Strategy Platform v4 - Services Package
+AI智投量化平台 v4 - Services Package
 """
 
 from services.quant import quant_service, QuantService

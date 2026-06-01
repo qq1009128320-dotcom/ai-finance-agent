@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-AI Strategy Generation Module - AI Quantitative Strategy Platform v4
+AI Strategy Generation Module - AI智投量化平台 v4
 Core functions:
 1. AI Strategy Generation: User describes strategy in natural language, AI generates executable Python code
 2. Strategy Editor: Support manual editing of generated strategies

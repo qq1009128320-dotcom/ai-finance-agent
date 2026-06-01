@@ -1,5 +1,5 @@
 """
-AI Quantitative Strategy Platform v4 - API v1: AI Endpoints
+AI智投量化平台 v4 - API v1: AI Endpoints
 """
 
 from fastapi import APIRouter, HTTPException

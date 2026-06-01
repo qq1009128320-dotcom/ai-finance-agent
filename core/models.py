@@ -1,5 +1,5 @@
 """
-AI Quantitative Strategy Platform v4 - Pydantic Data Models
+AI智投量化平台 v4 - Pydantic Data Models
 """
 
 from datetime import datetime

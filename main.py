@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-AI Quantitative Strategy Platform v4 - FastAPI Backend Server
+AI智投量化平台 v4 - FastAPI Backend Server
 =============================================================
 
-AI辅助量化策略平台后端服务
+AI智投量化平台后端服务
 
 启动方式:
     python main.py              # 开发模式
@@ -55,9 +55,9 @@ app = FastAPI(
     title=settings.APP_NAME,
     version=settings.APP_VERSION,
     description="""
-## AI量化策略平台 v4
+## AI智投量化平台 v4
 
-AI辅助的量化策略平台，支持：
+AI智投量化平台，支持：
 
 - **量化分析**: 28因子综合评分、单股深度分析、全市场扫描
 - **AI策略生成**: 自然语言描述生成可执行策略代码

@@ -1,112 +1,126 @@
 <template>
-  <div class="app">
-    <header class="header">
-      <div class="container">
-        <div class="header-content">
-          <div class="logo">
-            <span class="logo-icon">📊</span>
-            <span class="logo-text">AI量化策略平台</span>
-          </div>
-          <nav class="nav">
-            <router-link to="/analyze" class="nav-link" active-class="active">单股分析</router-link>
-            <router-link to="/scan" class="nav-link" active-class="active">全市场扫描</router-link>
-            <router-link to="/ai-strategy" class="nav-link" active-class="active">AI策略</router-link>
-            <router-link to="/backtest" class="nav-link" active-class="active">回测</router-link>
-            <router-link to="/strategies" class="nav-link" active-class="active">策略库</router-link>
-          </nav>
+  <div class="app-layout">
+    <!-- 全局错误提示 -->
+    <transition name="fade">
+      <div v-if="store.error" class="global-error" @click="store.clearError()">
+        <span class="error-icon">⚠️</span>
+        <span class="error-text">{{ store.error }}</span>
+      </div>
+    </transition>
+
+    <!-- 左侧边栏 -->
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <div class="logo-text">
+          <span class="logo-icon">📊</span>
+          <span>AI智投量化</span>
         </div>
+        <div class="logo-subtitle">INSTITUTIONAL GRADE</div>
       </div>
-    </header>
-    <main class="main">
-      <div class="container">
+
+      <nav class="sidebar-nav">
+        <router-link to="/analyze" class="sidebar-nav-item" active-class="router-link-active">
+          <span class="nav-icon">📈</span>
+          <span>单股分析</span>
+        </router-link>
+        <router-link to="/scan" class="sidebar-nav-item" active-class="router-link-active">
+          <span class="nav-icon">🔭</span>
+          <span>全市场扫描</span>
+        </router-link>
+        <router-link to="/ai-strategy" class="sidebar-nav-item" active-class="router-link-active">
+          <span class="nav-icon">🤖</span>
+          <span>AI策略</span>
+        </router-link>
+        <router-link to="/backtest" class="sidebar-nav-item" active-class="router-link-active">
+          <span class="nav-icon">📊</span>
+          <span>策略回测</span>
+        </router-link>
+        <router-link to="/strategies" class="sidebar-nav-item" active-class="router-link-active">
+          <span class="nav-icon">📚</span>
+          <span>策略库</span>
+        </router-link>
+      </nav>
+
+      <div class="sidebar-footer">
+        <a href="#" class="sidebar-footer-link">
+          <span class="nav-icon">⚙️</span>
+          <span>Settings</span>
+        </a>
+        <a href="#" class="sidebar-footer-link">
+          <span class="nav-icon">❓</span>
+          <span>Support</span>
+        </a>
+      </div>
+    </aside>
+
+    <!-- 主内容区 -->
+    <div class="main-wrapper">
+      <!-- 顶部通栏 -->
+      <header class="topbar">
+        <div class="topbar-nav">
+          <router-link to="/analyze" class="topbar-nav-link" active-class="router-link-active">单股分析</router-link>
+          <router-link to="/scan" class="topbar-nav-link" active-class="router-link-active">全市场扫描</router-link>
+          <router-link to="/ai-strategy" class="topbar-nav-link" active-class="router-link-active">AI策略</router-link>
+          <router-link to="/backtest" class="topbar-nav-link" active-class="router-link-active">回测</router-link>
+          <router-link to="/strategies" class="topbar-nav-link" active-class="router-link-active">策略库</router-link>
+        </div>
+        <div class="topbar-actions">
+          <button class="topbar-icon-btn" title="通知">
+            🔔
+          </button>
+          <button class="topbar-icon-btn" title="设置">
+            ⚙️
+          </button>
+          <div class="user-avatar" title="用户">AD</div>
+        </div>
+      </header>
+
+      <!-- 页面内容 -->
+      <main class="content">
         <router-view />
-      </div>
-    </main>
-    <footer class="footer">
-      <div class="container">
-        <p>AI Quantitative Strategy Platform v4.0 | Powered by FastAPI + Vue 3</p>
-      </div>
-    </footer>
+      </main>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-// App 根组件
+import { useAppStore } from '@/stores/app'
+
+const store = useAppStore()
 </script>
 
 <style scoped>
-.app {
+.app-layout {
   min-height: 100vh;
   display: flex;
-  flex-direction: column;
+  background: var(--bg-main);
 }
 
-.header {
-  background: var(--bg-card);
-  border-bottom: 1px solid var(--border-color);
-  padding: 16px 0;
-  position: sticky;
-  top: 0;
-  z-index: 100;
-}
-
-.header-content {
+.global-error {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-}
-
-.logo {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.logo-icon {
-  font-size: 28px;
-}
-
-.logo-text {
-  font-size: 20px;
-  font-weight: 700;
-  color: var(--text-primary);
-}
-
-.nav {
-  display: flex;
   gap: 8px;
-}
-
-.nav-link {
-  padding: 8px 16px;
-  border-radius: var(--radius);
-  color: var(--text-secondary);
-  text-decoration: none;
+  padding: 12px 24px;
+  background: rgba(239, 68, 68, 0.95);
+  color: white;
+  border-radius: var(--radius-md);
   font-size: 14px;
-  transition: all 0.2s;
+  cursor: pointer;
+  box-shadow: var(--shadow-lg);
+  max-width: 90vw;
+  backdrop-filter: blur(8px);
 }
 
-.nav-link:hover {
-  color: var(--text-primary);
-  background: var(--bg-card-hover);
+.fade-enter-active, .fade-leave-active {
+  transition: opacity 0.3s, transform 0.3s;
 }
-
-.nav-link.active {
-  color: var(--primary-color);
-  background: var(--bg-card-hover);
-}
-
-.main {
-  flex: 1;
-  padding: 32px 0;
-}
-
-.footer {
-  background: var(--bg-card);
-  border-top: 1px solid var(--border-color);
-  padding: 16px 0;
-  text-align: center;
-  color: var(--text-muted);
-  font-size: 13px;
+.fade-enter-from, .fade-leave-to {
+  opacity: 0;
+  transform: translateX(-50%) translateY(-10px);
 }
 </style>

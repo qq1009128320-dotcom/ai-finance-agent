@@ -1,7 +1,8 @@
 <template>
   <div class="analyze-view">
-    <h1 class="page-title">📊 单股量化分析</h1>
-    
+    <h1 class="page-title">📈 单股量化分析</h1>
+    <p class="page-subtitle">输入股票代码，获取28因子量化诊断报告</p>
+
     <!-- 搜索区 -->
     <div class="search-card card">
       <div class="search-form">
@@ -9,17 +10,23 @@
           v-model="symbolInput"
           type="text"
           class="input"
-          placeholder="输入股票代码（如 600036）或名称"
+          placeholder="输入股票代码（如 600036）或名称..."
           @keyup.enter="handleAnalyze"
         />
         <button class="btn btn-primary" @click="handleAnalyze" :disabled="loading">
-          {{ loading ? '分析中...' : '开始分析' }}
+          {{ loading ? '⏳ 分析中...' : '🔍 开始分析' }}
         </button>
       </div>
     </div>
 
+    <!-- 加载状态 -->
+    <div v-if="loading" class="loading">
+      <div class="spinner"></div>
+      <p>正在分析 {{ symbolInput }} ...</p>
+    </div>
+
     <!-- 结果区 -->
-    <template v-if="result">
+    <template v-else-if="result">
       <!-- 指标卡 -->
       <div class="metric-grid">
         <div class="metric-card">
@@ -38,7 +45,7 @@
         </div>
         <div class="metric-card">
           <div class="metric-value">
-            <span :class="getScoreClass(result.total_score)">{{ result.rating }}</span>
+            <span class="badge" :class="getScoreBadge(result.total_score)">{{ result.rating }}</span>
           </div>
           <div class="metric-label">评级</div>
         </div>
@@ -46,33 +53,36 @@
 
       <!-- 分析报告 -->
       <div class="card">
-        <h2 class="section-title">📈 量化分析报告</h2>
-        
-        <div class="recommendation-box">
-          <strong>操作建议：</strong> {{ result.recommendation }}
+        <h2 class="card-title">📊 量化分析报告</h2>
+
+        <div class="recommendation-box card" style="margin-bottom: 0; background: rgba(56,189,248,0.05); border-color: rgba(56,189,248,0.2);">
+          <div class="flex items-center gap-md">
+            <span class="badge badge-primary">操作建议</span>
+            <span style="font-size: 15px;">{{ result.recommendation }}</span>
+          </div>
         </div>
 
         <!-- 因子分布 -->
-        <div class="factor-distribution">
-          <h3>因子信号分布</h3>
+        <div class="factor-distribution" style="margin-top: var(--space-xl);">
+          <h3 style="font-size: 16px; margin-bottom: var(--space-md); color: var(--text-secondary);">因子信号分布</h3>
           <div class="factor-bars">
             <div v-for="(count, signal) in result.factor_distribution" :key="signal" class="factor-bar">
               <span class="factor-label">{{ signal }}</span>
-              <div class="factor-track">
-                <div class="factor-fill" :class="signal" :style="{ width: (count / 28 * 100) + '%' }"></div>
+              <div class="progress-track" style="flex: 1; margin: 0 12px;">
+                <div class="progress-fill" :class="signalClass(signal)" :style="{ width: (count / 28 * 100) + '%' }"></div>
               </div>
-              <span class="factor-count">{{ count }}</span>
+              <span class="factor-count">{{ count }}/28</span>
             </div>
           </div>
         </div>
 
         <!-- 风险指标 -->
-        <div class="risk-metrics">
-          <h3>风险指标</h3>
-          <div class="metrics-grid">
-            <div v-for="(value, key) in result.risk_metrics" :key="key" class="metric-item">
-              <span class="metric-name">{{ formatMetricName(key) }}</span>
-              <span class="metric-val">{{ formatMetricValue(value) }}</span>
+        <div class="risk-metrics" style="margin-top: var(--space-xl);">
+          <h3 style="font-size: 16px; margin-bottom: var(--space-md); color: var(--text-secondary);">风险指标</h3>
+          <div class="metric-grid" style="margin-bottom: 0;">
+            <div v-for="item in riskMetricsList" :key="item.key" class="metric-card" style="padding: var(--space-md);">
+              <div class="metric-label" style="font-size: 12px;">{{ item.label }}</div>
+              <div class="metric-value" style="font-size: 20px; margin-top: 4px;">{{ item.value }}</div>
             </div>
           </div>
         </div>
@@ -80,64 +90,86 @@
     </template>
 
     <!-- 空状态 -->
-    <div v-else-if="!loading" class="empty-state">
+    <div v-else class="empty-state">
+      <div class="empty-state-icon">📊</div>
       <p>👆 输入股票代码，点击「开始分析」获取28因子量化报告</p>
-    </div>
-
-    <!-- 加载状态 -->
-    <div v-if="loading" class="loading">
-      <div class="spinner"></div>
-      <p>正在分析 {{ symbolInput }} ...</p>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted, computed } from 'vue'
+import { useRoute } from 'vue-router'
 import { quantApi } from '@/api'
 import { useAppStore } from '@/stores/app'
 import type { AnalysisResult } from '@/stores/app'
 
+const route = useRoute()
 const store = useAppStore()
+
 const symbolInput = ref('')
 const loading = ref(false)
 const result = ref<AnalysisResult | null>(null)
 
+const riskMetricsList = computed(() => {
+  if (!result.value?.risk_metrics) return []
+  const map: Record<string, string> = {
+    max_drawdown: '最大回撤',
+    sharpe_ratio: '夏普比率',
+    volatility: '波动率',
+    beta: 'Beta系数',
+    var_95: 'VaR(95%)'
+  }
+  return Object.entries(result.value.risk_metrics).map(([key, value]) => ({
+    key,
+    label: map[key] || key.replace(/_/g, ' '),
+    value: formatMetricValue(value)
+  }))
+})
+
+onMounted(() => {
+  if (route.query.symbol) {
+    symbolInput.value = String(route.query.symbol)
+  }
+})
+
 async function handleAnalyze() {
-  if (!symbolInput.value.trim()) return
-  
+  if (!symbolInput.value.trim()) {
+    store.setError('请输入股票代码')
+    return
+  }
+
   loading.value = true
-  store.clearError()
-  
+  result.value = null
+
   try {
-    const response = await quantApi.analyze({
-      symbol: symbolInput.value.trim(),
-      count: 60
-    })
-    
+    const response = await quantApi.analyze({ symbol: symbolInput.value })
     result.value = response.data
     store.setAnalysisResult(response.data)
-    store.setSymbol(symbolInput.value.trim())
   } catch (err: any) {
-    store.setError(err.response?.data?.detail || '分析失败')
+    store.setError(err.response?.data?.detail || '分析失败，请检查股票代码')
   } finally {
     loading.value = false
   }
 }
 
-function getScoreClass(score: number): string {
-  if (score >= 80) return 'score-excellent'
-  if (score >= 60) return 'score-good'
-  if (score >= 40) return 'score-fair'
-  return 'score-poor'
+function getScoreBadge(score: number): string {
+  if (score >= 80) return 'badge-success'
+  if (score >= 60) return 'badge-warning'
+  return 'badge-danger'
 }
 
-function formatMetricName(key: string): string {
-  return key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+function signalClass(signal: string): string {
+  const s = signal.toLowerCase()
+  if (s.includes('多头') || s.includes('买入') || s.includes('看涨')) return 'success'
+  if (s.includes('空头') || s.includes('卖出') || s.includes('看跌')) return 'danger'
+  if (s.includes('中性')) return 'neutral'
+  return 'primary'
 }
 
 function formatMetricValue(value: any): string {
   if (typeof value === 'number') {
+    if (Math.abs(value) < 1 && value !== 0) return value.toFixed(4)
     return value.toFixed(2)
   }
   return String(value)
@@ -146,130 +178,46 @@ function formatMetricValue(value: any): string {
 
 <style scoped>
 .analyze-view {
-  max-width: 1200px;
+  max-width: 1400px;
 }
 
-.page-title {
-  font-size: 28px;
-  margin-bottom: 24px;
-  color: var(--text-primary);
-}
-
-.search-card {
-  margin-bottom: 24px;
-}
-
-.search-form {
+.search-card .search-form {
   display: flex;
-  gap: 12px;
+  gap: var(--space-md);
+  align-items: center;
 }
 
 .search-form .input {
   flex: 1;
-  max-width: 400px;
-}
-
-.section-title {
-  font-size: 18px;
-  margin-bottom: 16px;
-  padding-bottom: 8px;
-  border-bottom: 2px solid var(--primary-color);
-}
-
-.recommendation-box {
-  background: rgba(56, 189, 248, 0.1);
-  border-left: 4px solid var(--primary-color);
-  padding: 16px;
-  margin-bottom: 24px;
-  border-radius: 0 var(--radius) var(--radius) 0;
-}
-
-.factor-distribution,
-.risk-metrics {
-  margin-top: 24px;
-}
-
-.factor-distribution h3,
-.risk-metrics h3 {
-  font-size: 16px;
-  margin-bottom: 12px;
-  color: var(--text-secondary);
+  min-width: 0;
 }
 
 .factor-bars {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 
 .factor-bar {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
 }
 
 .factor-label {
-  width: 80px;
   font-size: 13px;
   color: var(--text-secondary);
+  min-width: 80px;
 }
-
-.factor-track {
-  flex: 1;
-  height: 24px;
-  background: var(--bg-dark);
-  border-radius: 4px;
-  overflow: hidden;
-}
-
-.factor-fill {
-  height: 100%;
-  border-radius: 4px;
-  transition: width 0.3s;
-}
-
-.factor-fill.bullish { background: var(--success); }
-.factor-fill.bearish { background: var(--danger); }
-.factor-fill.neutral { background: var(--text-muted); }
 
 .factor-count {
-  width: 30px;
-  text-align: right;
-  font-size: 13px;
-  color: var(--text-secondary);
-}
-
-.metrics-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 12px;
-}
-
-.metric-item {
-  display: flex;
-  justify-content: space-between;
-  padding: 12px;
-  background: var(--bg-dark);
-  border-radius: var(--radius);
-}
-
-.metric-name {
-  color: var(--text-secondary);
-  font-size: 13px;
-}
-
-.metric-val {
-  color: var(--text-primary);
-  font-weight: 600;
-  font-size: 14px;
-}
-
-.empty-state {
-  text-align: center;
-  padding: 60px 20px;
+  font-size: 12px;
   color: var(--text-muted);
+  min-width: 40px;
+  text-align: right;
 }
 
-.positive { color: var(--success) !important; }
-.negative { color: var(--danger) !important; }
+.recommendation-box p {
+  font-size: 15px;
+}
 </style>

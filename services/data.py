@@ -1,5 +1,5 @@
 """
-AI Quantitative Strategy Platform v4 - Data Service
+AI智投量化平台 v4 - Data Service
 行情数据获取服务
 """
 
