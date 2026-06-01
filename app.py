@@ -1455,11 +1455,11 @@ def main():
         """, unsafe_allow_html=True)
 
     # ── Tabs ──
-    tab1, tab2, tab3, tab4, tab5 = st.tabs([
-        "📊 单股分析", "🔭 全市场扫描", "🔴 交易雷达", "📊 组合仪表", "🇨🇳 A股特色"
+    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+        "📊 单股分析", "🔭 全市场扫描", "🔴 交易雷达", "📊 组合仪表", "🇨🇳 A股特色", "🤖 AI策略"
     ])
 
-    # tab2/3/4/5 放在前面，避免 tab1 的 return 阻断
+    # tab2/3/4/5/6 放在前面，避免 tab1 的 return 阻断
     with tab2:
         render_market_scan()
 
@@ -1478,6 +1478,10 @@ def main():
         render_north_money()
         st.markdown("---")
         render_dragon_tiger()
+
+    with tab6:
+        from ai_strategy import render_ai_strategy_tab
+        render_ai_strategy_tab()
 
     with tab1:
         # 输入区
