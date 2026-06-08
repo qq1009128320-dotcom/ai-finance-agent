@@ -89,7 +89,7 @@ def with_cache(cache_dir: str = None, ttl_hours: int = 24):
         def wrapper(*args, **kwargs):
             # 生成缓存 key
             key_data = f"{func.__name__}:{args}:{kwargs}"
-            cache_key = hashlib.md5(key_data.encode()).hexdigest()[:16]
+            cache_key = hashlib.md5(key_data.encode("utf-8")).hexdigest()[:16]
             
             cache_dir = cache_dir or os.path.join(
                 os.path.dirname(os.path.abspath(__file__)),

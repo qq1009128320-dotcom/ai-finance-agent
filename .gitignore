@@ -7,3 +7,8 @@ venv/
 dist/
 build/
 .env
+strategies/
+docs/
+*.bak
+*.swp
+*.swo

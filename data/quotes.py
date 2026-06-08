@@ -10,8 +10,17 @@ class TencentQuotes:
     
     def _to_code(self, symbol):
         symbol = symbol.strip().upper()
+        if not symbol:
+            raise ValueError("股票代码不能为空")
         if symbol.startswith(("SH", "SZ", "BJ")):
             return symbol.lower()
+        # 判断是否为中文名称
+        if not symbol.isascii():
+            # 从全市场名称映射中查找
+            code = self._lookup_name(symbol)
+            if code:
+                return code
+            raise ValueError(f"无法识别股票名称: {symbol}，请使用股票代码")
         # 精确前缀：北交所 8xxxxx/920xxx/4xxxxx，上海 6xxxxx/9xxxxx，深圳 0xxxxx/3xxxxx/2xxxxx
         first = symbol[0]
         if first == "8":
@@ -25,6 +34,56 @@ class TencentQuotes:
         if first in ("0", "3", "2"):
             return f"sz{symbol}"
         return f"sz{symbol}"
+    
+    _name_cache = None
+    
+    def _lookup_name(self, name: str) -> str:
+        """通过全市场A股名称映射查找股票代码"""
+        if TencentQuotes._name_cache is None:
+            try:
+                import akshare as ak
+                df = ak.stock_info_a_code_name()
+                cache = {}
+                for _, row in df.iterrows():
+                    code = str(row["code"]).strip()
+                    n = str(row["name"]).strip()
+                    if code and n:
+                        cache[n] = code
+                TencentQuotes._name_cache = cache
+                print(f"[quotes] 已加载 {len(cache)} 只股票名称映射")
+            except Exception as e:
+                print(f"[quotes] akshare加载失败: {e}")
+                TencentQuotes._name_cache = {}
+        
+        cache = TencentQuotes._name_cache
+        
+        # 精确匹配
+        if name in cache:
+            return self._add_prefix(cache[name])
+        
+        # 去除 XD/XR/*ST/ST 等前缀后尝试精确匹配
+        import re as _re
+        clean_name = _re.sub(r'^[Xx][DdRr]|^\*?[Ss][Tt]', '', name).strip()
+        if clean_name != name and clean_name in cache:
+            return self._add_prefix(cache[clean_name])
+        
+        # 模糊匹配：遍历整个缓存查找包含关系
+        for cached_name, cached_code in cache.items():
+            # 清理缓存中的特殊前缀后比较
+            clean_cached = _re.sub(r'^[Xx][DdRr]|^\*?[Ss][Tt]', '', cached_name).strip()
+            if clean_name in clean_cached or clean_cached in clean_name:
+                return self._add_prefix(cached_code)
+        
+        return None
+    
+    def _add_prefix(self, code: str) -> str:
+        """给纯数字股票代码添加交易所前缀"""
+        first = code[0]
+        if first == "8" or first == "4" or code.startswith("920"):
+            return f"bj{code}"
+        if first in ("6", "9"):
+            return f"sh{code}"
+        return f"sz{code}"
     
     def get_quotes(self, symbols):
         codes = [self._to_code(s) for s in symbols]

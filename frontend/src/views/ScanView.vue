@@ -11,7 +11,7 @@
           <select v-model="scope" class="input">
             <option value="top200">前200只</option>
             <option value="top500">前500只</option>
-            <option value="all">全部</option>
+            <option value="all">全部（约5500只）</option>
           </select>
         </div>
         <div class="control-group">
@@ -32,12 +32,15 @@
           </button>
         </div>
       </div>
+      <div v-if="scanResult" class="scan-info">
+        <span class="text-muted">已扫描 {{ scanResult.total_stocks }} 只股票，耗时约 {{ scanTime }} 秒</span>
+      </div>
     </div>
 
     <!-- 加载状态 -->
     <div v-if="scanning" class="loading">
       <div class="spinner"></div>
-      <p>正在扫描市场...</p>
+      <p>正在扫描市场{{ scope === 'all' ? '（全部约5500只股票，请稍候）' : '' }}...</p>
     </div>
 
     <!-- 结果区 -->
@@ -47,36 +50,26 @@
         <h2 class="card-title">📊 市场情绪概览</h2>
         <div class="overview-content">
           <div class="overview-bars">
-            <div class="bar-item">
-              <span class="bar-label">🟢 看涨</span>
+            <div class="bar-item" v-for="bar in overviewBars" :key="bar.label">
+              <span class="bar-label">{{ bar.label }}</span>
               <div class="progress-track" style="flex: 1; margin: 0 12px;">
-                <div class="progress-fill success" :style="{ width: (scanResult.bullish_count / scanResult.total_stocks * 100) + '%' }"></div>
+                <div class="progress-fill" :style="{ width: bar.width + '%', background: bar.color }"></div>
               </div>
-              <span class="bar-value text-success">{{ scanResult.bullish_count }}</span>
-            </div>
-            <div class="bar-item">
-              <span class="bar-label">⚪ 中性</span>
-              <div class="progress-track" style="flex: 1; margin: 0 12px;">
-                <div class="progress-fill neutral" :style="{ width: (scanResult.neutral_count / scanResult.total_stocks * 100) + '%' }"></div>
-              </div>
-              <span class="bar-value">{{ scanResult.neutral_count }}</span>
-            </div>
-            <div class="bar-item">
-              <span class="bar-label">🔴 看跌</span>
-              <div class="progress-track" style="flex: 1; margin: 0 12px;">
-                <div class="progress-fill danger" :style="{ width: (scanResult.bearish_count / scanResult.total_stocks * 100) + '%' }"></div>
-              </div>
-              <span class="bar-value text-danger">{{ scanResult.bearish_count }}</span>
+              <span class="bar-value" :style="{ color: bar.color }">{{ bar.value }}</span>
             </div>
           </div>
           <div class="overview-stats flex gap-lg" style="margin-top: var(--space-md); padding-top: var(--space-md); border-top: 1px solid var(--border);">
             <div class="stat">
-              <span class="stat-value" style="font-size: 24px; font-weight: 700;">{{ scanResult.avg_score }}</span>
+              <span class="stat-value" style="font-size: 48px; font-weight: 700;">{{ scanResult.avg_score }}</span>
               <span class="stat-label">平均评分</span>
             </div>
             <div class="stat">
-              <span class="stat-value" style="font-size: 24px; font-weight: 700;">{{ scanResult.total_stocks }}</span>
+              <span class="stat-value" style="font-size: 48px; font-weight: 700;">{{ scanResult.total_stocks }}</span>
               <span class="stat-label">扫描数量</span>
+            </div>
+            <div class="stat">
+              <span class="stat-value" style="font-size: 48px; font-weight: 700; color: var(--up);">{{ bullish_pct }}%</span>
+              <span class="stat-label">看涨占比</span>
             </div>
           </div>
         </div>
@@ -94,12 +87,12 @@
             <div class="stock-name">{{ stock.name }}</div>
             <div class="stock-price">
               <span>¥{{ stock.price }}</span>
-              <span :class="stock.change_pct >= 0 ? 'text-success' : 'text-danger'" style="font-weight: 600;">
+              <span :class="stock.change_pct >= 0 ? 'text-up' : 'text-down'" style="font-weight: 600;">
                 {{ stock.change_pct >= 0 ? '+' : '' }}{{ stock.change_pct }}%
               </span>
             </div>
             <div class="stock-score">
-              评分：<strong style="font-size: 18px; color: var(--primary);">{{ stock.score }}</strong>
+              评分：<strong style="font-size: 36px; color: var(--primary);">{{ stock.score }}</strong>
             </div>
             <button class="btn btn-secondary btn-sm" @click="goToAnalyze(stock.symbol)" style="margin-top: var(--space-sm); width: 100%;">
               🔍 分析
@@ -120,12 +113,12 @@
             <div class="stock-name">{{ stock.name }}</div>
             <div class="stock-price">
               <span>¥{{ stock.price }}</span>
-              <span :class="stock.change_pct >= 0 ? 'text-success' : 'text-danger'" style="font-weight: 600;">
+              <span :class="stock.change_pct >= 0 ? 'text-up' : 'text-down'" style="font-weight: 600;">
                 {{ stock.change_pct >= 0 ? '+' : '' }}{{ stock.change_pct }}%
               </span>
             </div>
             <div class="stock-score">
-              评分：<strong style="font-size: 18px; color: var(--danger);">{{ stock.score }}</strong>
+              评分：<strong style="font-size: 36px; color: var(--danger);">{{ stock.score }}</strong>
             </div>
             <button class="btn btn-secondary btn-sm" @click="goToAnalyze(stock.symbol)" style="margin-top: var(--space-sm); width: 100%;">
               🔍 分析
@@ -144,7 +137,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { quantApi } from '@/api'
 
@@ -155,6 +148,7 @@ const minScore = ref(60)
 const sortBy = ref('score')
 const scanning = ref(false)
 const scanResult = ref<MarketScanResponse | null>(null)
+const scanTime = ref(0)
 
 interface MarketScanResponse {
   total_stocks: number
@@ -175,18 +169,36 @@ interface StockItem {
   rating: string
 }
 
+const bullish_pct = computed(() => {
+  if (!scanResult.value || scanResult.value.total_stocks === 0) return 0
+  return ((scanResult.value.bullish_count / scanResult.value.total_stocks) * 100).toFixed(1)
+})
+
+const overviewBars = computed(() => {
+  if (!scanResult.value || scanResult.value.total_stocks === 0) return []
+  const total = scanResult.value.total_stocks
+  return [
+    { label: '🟢 看涨', value: scanResult.value.bullish_count, width: (scanResult.value.bullish_count / total * 100), color: 'var(--up)' },
+    { label: '⚪ 中性', value: scanResult.value.neutral_count, width: (scanResult.value.neutral_count / total * 100), color: 'var(--warning)' },
+    { label: '🔴 看跌', value: scanResult.value.bearish_count, width: (scanResult.value.bearish_count / total * 100), color: 'var(--down)' },
+  ]
+})
+
 async function handleScan() {
   scanning.value = true
   scanResult.value = null
+  scanTime.value = 0
+  const startTime = Date.now()
 
   try {
     const response = await quantApi.scan({
       scope: scope.value,
       min_score: minScore.value,
       sort_by: sortBy.value,
-      limit: 50
+      limit: 200
     })
     scanResult.value = response.data
+    scanTime.value = Number(((Date.now() - startTime) / 1000).toFixed(1))
   } catch (err) {
     console.error('扫描失败', err)
   } finally {
@@ -207,7 +219,6 @@ function goToAnalyze(symbol: string) {
 
 <style scoped>
 .scan-view {
-  max-width: 1400px;
 }
 
 .scan-controls .control-row {
@@ -217,12 +228,20 @@ function goToAnalyze(symbol: string) {
   align-items: end;
 }
 
+.scan-info {
+  margin-top: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  font-size: 22px;
+}
+
 .control-group label {
   margin-bottom: var(--space-xs);
 }
 
 .section-title {
-  font-size: 18px;
+  font-size: 36px;
   font-weight: 600;
   margin-bottom: var(--space-md);
   display: flex;
@@ -248,13 +267,13 @@ function goToAnalyze(symbol: string) {
 }
 
 .stock-symbol {
-  font-size: 16px;
+  font-size: 32px;
   font-weight: 700;
   font-family: 'Fira Code', monospace;
 }
 
 .stock-name {
-  font-size: 14px;
+  font-size: 28px;
   color: var(--text-secondary);
   margin-bottom: var(--space-sm);
 }
@@ -267,12 +286,12 @@ function goToAnalyze(symbol: string) {
 }
 
 .stock-price span:first-child {
-  font-size: 18px;
+  font-size: 36px;
   font-weight: 600;
 }
 
 .stock-score {
-  font-size: 13px;
+  font-size: 26px;
   color: var(--text-secondary);
   margin-bottom: var(--space-sm);
 }
@@ -290,12 +309,12 @@ function goToAnalyze(symbol: string) {
 }
 
 .bar-label {
-  font-size: 13px;
+  font-size: 26px;
   min-width: 60px;
 }
 
 .bar-value {
-  font-size: 14px;
+  font-size: 28px;
   font-weight: 600;
   min-width: 40px;
   text-align: right;
@@ -308,7 +327,7 @@ function goToAnalyze(symbol: string) {
 }
 
 .stat-label {
-  font-size: 12px;
+  font-size: 24px;
   color: var(--text-muted);
   margin-top: 2px;
 }

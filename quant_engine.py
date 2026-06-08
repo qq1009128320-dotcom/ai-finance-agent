@@ -1063,7 +1063,7 @@ class FactorCalculator:
                 detail += "，巨量收阴，主力出货嫌疑极大"
         elif cur_vol > cur_ma20 * 1.5:
             detail = f"明显放量({cur_vol/cur_ma20:.1f}倍)"
-            score, signal = 65, "bullish" if self.close[-1] > self.open[-1] else 35, "neutral"
+            score, signal = (65, "bullish") if self.close[-1] > self.open[-1] else (35, "neutral")
         elif cur_vol > cur_ma20 * 0.5:
             score, signal = 55, "neutral"
             detail = f"成交量正常({cur_vol/cur_ma20:.1f}倍)"

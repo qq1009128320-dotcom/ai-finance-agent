@@ -66,6 +66,14 @@ class QuantAnalysisResponse(BaseModel):
     exit_zone: Optional[Dict[str, float]] = None
     recommendation: str
     position_advice: str
+    
+    # 扩展数据（补齐demo原有内容）
+    signal_summary: str = ""
+    triggers: Optional[Dict[str, Any]] = None
+    tech_snapshot: Optional[Dict[str, Any]] = None
+    relative_strength: Optional[Dict[str, Any]] = None
+    financial_summary: Optional[Dict[str, Any]] = None
+    news_sentiment: Optional[Dict[str, Any]] = None
 
 
 # ==================== 市场扫描模型 ====================
@@ -168,6 +176,12 @@ class BacktestRequest(BaseModel):
     initial_capital: float = Field(100000.0, description="初始资金")
 
 
+class EquityPoint(BaseModel):
+    """资金曲线数据点"""
+    date: str
+    value: float
+    drawdown: float = 0.0
+
 class BacktestMetrics(BaseModel):
     """回测指标"""
     total_return: Optional[float] = None
@@ -181,6 +195,7 @@ class BacktestMetrics(BaseModel):
     sell_count: Optional[int] = None
     initial_capital: float
     final_capital: Optional[float] = None
+    equity_curve: Optional[List[EquityPoint]] = None
 
 
 class TradeRecord(BaseModel):

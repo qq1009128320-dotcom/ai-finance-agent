@@ -65,7 +65,7 @@ class StrategyService:
         
         # 生成ID
         strategy_id = hashlib.md5(
-            f"{request.name}{time.time()}".encode()
+            f"{request.name}{time.time()}".encode("utf-8")
         ).hexdigest()[:8]
         
         # 保存文件

@@ -36,7 +36,7 @@
 
         <!-- 示例策略 -->
         <div class="examples" style="margin-top: var(--space-lg); padding-top: var(--space-lg); border-top: 1px solid var(--border);">
-          <h3 style="font-size: 14px; margin-bottom: var(--space-sm); color: var(--text-secondary);">快速加载示例</h3>
+          <h3 style="font-size: 28px; margin-bottom: var(--space-sm); color: var(--text-secondary);">快速加载示例</h3>
           <div class="btn-group">
             <button class="btn btn-secondary btn-sm" @click="loadExample('ma')">📐 均线金叉</button>
             <button class="btn btn-secondary btn-sm" @click="loadExample('rsi')">📊 RSI动量</button>
@@ -60,6 +60,12 @@
               {{ isValid ? '✓ 代码有效' : '✗ 代码无效' }}
             </span>
           </div>
+
+          <!-- 策略说明 -->
+          <div v-if="explanation" class="explanation-box" style="margin: var(--space-md); padding: 12px 16px; background: rgba(56,189,248,0.03); border: 1px solid rgba(56,189,248,0.1); border-radius: 8px; font-size: 26px; color: var(--text-secondary); line-height: 1.6; white-space: pre-wrap;">
+            {{ explanation }}
+          </div>
+
           <pre class="code-editor"><code>{{ generatedCode }}</code></pre>
 
           <div class="code-actions" style="display: flex; gap: var(--space-sm); margin: var(--space-md);">
@@ -89,21 +95,37 @@
         <div class="metric-grid" style="margin-bottom: 0;">
           <div class="metric-card">
             <div class="metric-value" :class="((backtestResult.metrics.total_return ?? 0) >= 0) ? 'positive' : 'negative'">
-              {{ backtestResult.metrics.total_return ?? 'N/A' }}%
+              {{ backtestResult.metrics.total_return != null ? backtestResult.metrics.total_return + '%' : 'N/A' }}
             </div>
             <div class="metric-label">总收益率</div>
           </div>
           <div class="metric-card">
+            <div class="metric-value" :class="((backtestResult.metrics.annual_return ?? 0) >= 0) ? 'positive' : 'negative'">
+              {{ backtestResult.metrics.annual_return != null ? backtestResult.metrics.annual_return + '%' : 'N/A' }}
+            </div>
+            <div class="metric-label">年化收益</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-value" :class="((backtestResult.metrics.sharpe_ratio ?? 0) >= 1) ? 'positive' : 'negative'">
+              {{ backtestResult.metrics.sharpe_ratio != null ? backtestResult.metrics.sharpe_ratio.toFixed(2) : 'N/A' }}
+            </div>
+            <div class="metric-label">夏普比率</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-value" :class="((backtestResult.metrics.max_drawdown ?? 0) >= -10) ? 'positive' : 'negative'">
+              {{ backtestResult.metrics.max_drawdown != null ? backtestResult.metrics.max_drawdown + '%' : 'N/A' }}
+            </div>
+            <div class="metric-label">最大回撤</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-value" :class="((backtestResult.metrics.win_rate ?? 0) >= 50) ? 'positive' : 'negative'">
+              {{ backtestResult.metrics.win_rate != null ? backtestResult.metrics.win_rate + '%' : 'N/A' }}
+            </div>
+            <div class="metric-label">胜率</div>
+          </div>
+          <div class="metric-card">
             <div class="metric-value">{{ backtestResult.metrics.total_trades ?? 0 }}</div>
             <div class="metric-label">交易次数</div>
-          </div>
-          <div class="metric-card">
-            <div class="metric-value">{{ backtestResult.metrics.buy_count ?? 0 }}</div>
-            <div class="metric-label">买入次数</div>
-          </div>
-          <div class="metric-card">
-            <div class="metric-value">{{ backtestResult.metrics.sell_count ?? 0 }}</div>
-            <div class="metric-label">卖出次数</div>
           </div>
         </div>
       </div>
@@ -123,6 +145,7 @@ const prompt = ref('')
 const style = ref('balanced')
 const generatedCode = ref('')
 const isValid = ref(false)
+const explanation = ref('')
 const generating = ref(false)
 const strategyName = ref('')
 const backtestSymbol = ref('')
@@ -221,7 +244,8 @@ async function handleGenerate() {
   try {
     const response = await aiApi.generate({ prompt: prompt.value, style: style.value })
     generatedCode.value = response.data.code
-    isValid.value = response.data.valid ?? true
+    isValid.value = response.data.is_valid ?? true
+    explanation.value = response.data.explanation || ''
     store.setGeneratedCode(response.data.code)
   } catch (err: any) {
     store.setError(err.response?.data?.detail || '生成失败')

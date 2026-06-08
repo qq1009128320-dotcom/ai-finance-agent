@@ -23,6 +23,12 @@ export interface AnalysisResult {
   factor_distribution: Record<string, number>
   risk_metrics: Record<string, any>
   recommendation: string
+  signal_summary?: string
+  triggers?: Record<string, string>
+  tech_snapshot?: Record<string, any>
+  relative_strength?: Record<string, any>
+  financial_summary?: Record<string, any>
+  news_sentiment?: Record<string, any>
 }
 
 export interface BacktestResult {
@@ -33,11 +39,17 @@ export interface BacktestResult {
   message: string
   metrics: {
     total_return?: number
+    annual_return?: number
+    max_drawdown?: number
+    sharpe_ratio?: number
+    win_rate?: number
+    profit_factor?: number
     total_trades?: number
     buy_count?: number
     sell_count?: number
     initial_capital: number
     final_capital?: number
+    equity_curve?: { date: string; value: number; drawdown: number }[]
   }
   trades: any[]
 }

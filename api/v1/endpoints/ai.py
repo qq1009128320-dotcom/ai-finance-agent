@@ -4,7 +4,8 @@ AI智投量化平台 v4 - API v1: AI Endpoints
 
 from fastapi import APIRouter, HTTPException
 from core.models import (
-    AIStrategyGenerateRequest, AIStrategyGenerateResponse
+    AIStrategyGenerateRequest, AIStrategyGenerateResponse,
+    StrategyValidateRequest, StrategyValidateResponse
 )
 from services.ai import ai_service
 
@@ -27,8 +28,8 @@ async def generate_strategy(request: AIStrategyGenerateRequest):
         raise HTTPException(status_code=500, detail=f"生成失败: {str(e)}")
 
 
-@router.post("/validate")
-async def validate_ai_strategy(code: str):
+@router.post("/validate", response_model=StrategyValidateResponse)
+async def validate_ai_strategy(request: StrategyValidateRequest):
     """
     验证AI生成的策略代码
     
@@ -36,5 +37,5 @@ async def validate_ai_strategy(code: str):
     
     返回验证结果。
     """
-    is_valid, msg = ai_service.validate(code)
-    return {"is_valid": is_valid, "message": msg}
+    is_valid, msg = ai_service.validate(request.code)
+    return StrategyValidateResponse(is_valid=is_valid, message=msg)

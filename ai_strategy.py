@@ -50,6 +50,8 @@ def get_deepseek_client():
 # -- Strategy Generation --
 STRATEGY_SYSTEM_PROMPT = """You are a professional quantitative trading strategy development engineer. Users will describe their desired trading strategy in natural language, and you need to convert it into executable Python strategy code.
 
+IMPORTANT: All user-facing text (buy/sell reasons, strategy descriptions, comments) MUST be in Chinese (中文). Example: use "金叉买入信号" not "Golden cross buy signal", use "止盈卖出" not "Take profit sell", use "止损卖出" not "Stop loss sell".
+
 ## Strategy Code Standards
 
 ### Required Functions
@@ -470,7 +472,7 @@ def save_strategy(name: str, code: str, description: str = "", tags: List[str] =
         tags = []
     
     # Generate unique ID
-    strategy_id = hashlib.md5(f"{name}{time.time()}".encode()).hexdigest()[:8]
+    strategy_id = hashlib.md5(f"{name}{time.time()}".encode("utf-8")).hexdigest()[:8]
     
     # Strategy file
     strategy_file = STRATEGY_DIR / f"{strategy_id}_{name.replace(' ', '_')}.json"

@@ -26,7 +26,7 @@ export const aiApi = {
   generate: (data: { prompt: string; style?: string }) =>
     api.post('/ai/generate', data),
   
-  validate: (code: string) => api.post('/ai/validate', null, { params: { code } })
+  validate: (code: string) => api.post('/ai/validate', { code })
 }
 
 // 策略管理 API

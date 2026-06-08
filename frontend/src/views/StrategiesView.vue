@@ -42,19 +42,19 @@
       <div v-for="strategy in filteredStrategies" :key="strategy.id" class="strategy-card card">
         <div class="strategy-header">
           <div class="flex items-center gap-md">
-            <h3 style="font-size: 18px; font-weight: 600;">{{ strategy.name }}</h3>
+            <h3 style="font-size: 36px; font-weight: 600;">{{ strategy.name }}</h3>
             <span v-for="tag in strategy.tags" :key="tag" class="badge badge-primary">{{ tag }}</span>
           </div>
           <div class="strategy-version">
-            <span class="text-muted" style="font-size: 12px;">v{{ strategy.version }}</span>
+            <span class="text-muted" style="font-size: 24px;">v{{ strategy.version }}</span>
           </div>
         </div>
 
-        <p class="strategy-desc" style="font-size: 13px; color: var(--text-secondary); margin: var(--space-sm) 0;">
+        <p class="strategy-desc" style="font-size: 26px; color: var(--text-secondary); margin: var(--space-sm) 0;">
           {{ strategy.description || '暂无描述' }}
         </p>
 
-        <div class="strategy-meta flex items-center gap-md" style="font-size: 12px; color: var(--text-muted);">
+        <div class="strategy-meta flex items-center gap-md" style="font-size: 24px; color: var(--text-muted);">
           <span>📅 {{ formatDate(strategy.created_at) }}</span>
           <span>🕐 {{ formatTime(strategy.updated_at) }}</span>
         </div>
@@ -101,8 +101,9 @@ async function refreshStrategies() {
   loading.value = true
   try {
     const response = await strategyApi.list()
-    strategies.value = response.data
-    store.setStrategies(response.data)
+    const data = response.data
+    strategies.value = data.strategies ?? data
+    store.setStrategies(strategies.value)
   } catch (err) {
     console.error('加载策略失败', err)
   } finally {
@@ -169,16 +170,14 @@ async function deleteStrategy(id: string) {
 
 <style scoped>
 .strategies-view {
-  max-width: 1400px;
 }
-
 .strategies-header {
   margin-bottom: var(--space-lg);
 }
 
 .strategies-list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
   gap: var(--space-lg);
 }
 

@@ -3,6 +3,8 @@ AI智投量化平台 v4 - API v1: Strategy Endpoints
 """
 
 from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
+from typing import Optional
 from core.models import (
     StrategyCreateRequest, StrategyResponse, StrategyListResponse,
     StrategyValidateRequest, StrategyValidateResponse
@@ -85,12 +87,17 @@ async def delete_strategy(strategy_id: str):
     return {"message": f"策略 {strategy_id} 已删除"}
 
 
+class StrategyUpdateRequest(BaseModel):
+    """更新策略请求"""
+    code: str
+    name: Optional[str] = None
+    description: Optional[str] = None
+
+
 @router.put("/update/{strategy_id}", response_model=StrategyResponse)
 async def update_strategy(
     strategy_id: str,
-    code: str,
-    name: str = None,
-    description: str = None
+    request: StrategyUpdateRequest
 ):
     """
     更新策略
@@ -104,7 +111,7 @@ async def update_strategy(
     """
     try:
         return strategy_service.update_strategy(
-            strategy_id, code, name, description
+            strategy_id, request.code, request.name, request.description
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

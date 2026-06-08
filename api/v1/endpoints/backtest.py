@@ -25,6 +25,8 @@ async def run_backtest(request: BacktestRequest):
     try:
         return backtest_service.run_backtest(request)
     except Exception as e:
+        import traceback
+        print(f"[backtest/run ERROR] {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"回测失败: {str(e)}")
 
 
@@ -43,4 +45,9 @@ async def validate_and_run_backtest(request: BacktestRequest):
         raise HTTPException(status_code=400, detail=f"策略代码无效: {msg}")
     
     # 运行回测
-    return backtest_service.run_backtest(request)
+    try:
+        return backtest_service.run_backtest(request)
+    except Exception as e:
+        import traceback
+        print(f"[backtest/validate-and-run ERROR] {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"回测失败: {str(e)}")
