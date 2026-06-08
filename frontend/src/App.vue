@@ -38,8 +38,10 @@
       </div>
     </div>
 
-    <!-- 左侧边栏 -->
-    <aside class="sidebar">
+    <!-- 侧边栏 + 主内容区容器 -->
+    <div class="app-body">
+      <!-- 左侧边栏 -->
+      <aside class="sidebar">
       <div class="sidebar-brand">
         <div class="logo-text">
           <span class="logo-icon">📊</span>
@@ -112,6 +114,7 @@
         </div>
       </main>
     </div>
+    </div> <!-- app-body end -->
   </div>
 </template>
 
@@ -199,7 +202,14 @@ onUnmounted(() => {
 .app-layout {
   min-height: 100vh;
   display: flex;
+  flex-direction: column;
   background: var(--bg-main);
+}
+
+.app-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
 }
 
 /* 机会雷达滚动条 */

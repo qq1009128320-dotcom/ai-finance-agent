@@ -211,7 +211,7 @@ function renderEquityChart() {
     grid: {
       left: '8%',
       right: '8%',
-      bottom: '10%',
+      bottom: '18%',
       top: '15%',
       containLabel: true
     },
@@ -222,7 +222,9 @@ function renderEquityChart() {
       axisLabel: {
         fontSize: 18,
         color: 'var(--text-secondary)',
-        interval: Math.floor(dates.length / 20)
+        interval: Math.floor(dates.length / 15),
+        rotate: dates.length > 50 ? 30 : 0,
+        margin: 12
       },
       axisLine: {
         lineStyle: { color: 'var(--border)' }

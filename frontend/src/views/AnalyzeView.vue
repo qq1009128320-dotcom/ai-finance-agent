@@ -29,8 +29,8 @@
     <template v-else-if="result">
       <!-- 指标卡 -->
       <div class="metric-grid">
-        <div class="metric-card">
-          <div class="metric-value">{{ result.name }}</div>
+        <div class="metric-card card-wide">
+          <div class="metric-value stock-name">{{ result.name }}</div>
           <div class="metric-label">{{ result.symbol }}</div>
         </div>
         <div class="metric-card">
@@ -99,7 +99,7 @@
           <h3 class="section-title">📊 因子信号分布</h3>
           <div class="factor-bars">
             <div v-for="(count, signal) in result.factor_distribution" :key="signal" class="factor-bar">
-              <span class="factor-label">{{ signal }}</span>
+              <span class="factor-label">{{ factorSignalLabel(signal) }}</span>
               <div class="progress-track" style="flex: 1; margin: 0 12px;">
                 <div class="progress-fill" :class="signalClass(signal)" :style="{ width: (count / 28 * 100) + '%' }"></div>
               </div>
@@ -285,6 +285,13 @@ function signalLabel(signal: string): string {
   if (s === 'bullish') return '🔴 看涨'
   if (s === 'bearish') return '🟢 看跌'
   return '➖ 中性'
+}
+
+function factorSignalLabel(signal: string): string {
+  const s = signal.toLowerCase()
+  if (s.includes('bullish') || s.includes('看涨') || s.includes('买入') || s.includes('多头')) return '🟢 看涨信号'
+  if (s.includes('bearish') || s.includes('看跌') || s.includes('卖出') || s.includes('空头')) return '🔴 看跌信号'
+  return '⚪ 中性信号'
 }
 
 function formatMetricValue(value: any): string {
@@ -565,5 +572,17 @@ function formatTechValue(val: any): string {
 
 .recommendation-box p {
   font-size: 30px;
+}
+
+/* 股票名称跨列显示 */
+.card-wide {
+  grid-column: span 2;
+}
+
+.stock-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 48px;
 }
 </style>
