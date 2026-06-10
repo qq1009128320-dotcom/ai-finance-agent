@@ -3,6 +3,7 @@ AI智投量化平台 v4 - Backtest Service
 """
 
 import sys
+import json
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 
@@ -14,6 +15,60 @@ from services.data import data_service
 from core.models import (
     BacktestRequest, BacktestResponse, BacktestMetrics, TradeRecord, EquityPoint
 )
+
+
+def _builder_config_to_code(config: dict) -> str:
+    """将策略编辑器保存的JSON配置转换为可执行的Python策略代码"""
+    stop_loss = float(config.get("stopLoss", 8)) / 100
+    take_profit = float(config.get("takeProfit", 25)) / 100
+    trailing_stop = float(config.get("trailingStop", 6)) / 100
+    max_positions = int(config.get("maxPositions", 5))
+    
+    lines = []
+    lines.append("import numpy as np")
+    lines.append("def init(context):")
+    lines.append('    context.symbol = "600036"')
+    lines.append("    context.ma_short = 5; context.ma_long = 20")
+    lines.append("    context.stop_loss = -%s" % stop_loss)
+    lines.append("    context.take_profit = %s" % take_profit)
+    lines.append("    context.trailing_stop = %s" % trailing_stop)
+    lines.append("    context.max_positions = %s" % max_positions)
+    lines.append("    context.highest_price = 0")
+    lines.append("def handle_data(context, data):")
+    lines.append('    symbol = context.symbol')
+    lines.append('    current_price = data[symbol]["close"]')
+    lines.append('    kline = get_kline(symbol, period="day", count=60)')
+    lines.append("    if kline is None or len(kline) < 20: return")
+    lines.append('    close = kline["close"].values')
+    lines.append("    ma_short = np.mean(close[-5:]); ma_long = np.mean(close[-20:])")
+    lines.append("    position = context.portfolio.positions.get(symbol, None)")
+    lines.append("    if position is None:")
+    lines.append("        p5 = np.mean(close[-6:-1]); p20 = np.mean(close[-21:-1])")
+    lines.append("        if p5 <= p20 and ma_short > ma_long:")
+    lines.append('            buy(symbol, current_price, "金叉买入")')
+    lines.append("            return")
+    lines.append("    if position is not None:")
+    lines.append('        cost = position.get("cost_price", current_price); pnl = (current_price - cost) / max(cost, 0.01)')
+    lines.append("        if context.highest_price is None or current_price > context.highest_price:")
+    lines.append("            context.highest_price = current_price")
+    lines.append("        highest = context.highest_price if context.highest_price and context.highest_price > 0 else current_price")
+    lines.append("        dd = (highest - current_price) / highest")
+    lines.append('        if pnl >= context.take_profit: sell(symbol, current_price, "止盈"); return')
+    lines.append('        if pnl <= context.stop_loss: sell(symbol, current_price, "止损"); return')
+    lines.append('        if pnl > 0 and dd >= context.trailing_stop: sell(symbol, current_price, "跟踪止损"); return')
+    return "\n".join(lines)
+
+
+def _resolve_code(code: str) -> str:
+    """如果 code 是 JSON 策略配置, 转为 Python 代码; 否则原样返回"""
+    stripped = code.strip()
+    if stripped.startswith("{"):
+        try:
+            config = json.loads(stripped)
+            return _builder_config_to_code(config)
+        except (json.JSONDecodeError, Exception):
+            pass  # 不是合法JSON,保持原样
+    return code
 
 
 class BacktestService:
@@ -62,7 +117,7 @@ class BacktestService:
                 trades=[],
             )
         
-        # 解析K线 — 部分K线含第7列分红信息，只取前6列
+        # 解析K线 -- 部分K线含第7列分红信息,只取前6列
         cols = ["date", "open", "close", "high", "low", "volume"]
         bars_clean = [bar[:6] for bar in bars]
         df = pd.DataFrame(bars_clean, columns=cols)
@@ -72,10 +127,10 @@ class BacktestService:
         df["date"] = pd.to_datetime(df["date"])
         df.set_index("date", inplace=True)
         
-        # 创建执行环境 — 支持对象式 portfolio 访问
-        # 模拟可能缺失的第三方库，注入 sys.modules 让 import 语句也能找到
+        # 创建执行环境 -- 支持对象式 portfolio 访问
+        # 模拟可能缺失的第三方库,注入 sys.modules 让 import 语句也能找到
         class MockTA:
-            """模拟 talib 库，返回兼容形状的数组避免崩溃"""
+            """模拟 talib 库,返回兼容形状的数组避免崩溃"""
             def _array(self, *args, **kwargs):
                 # 从第一个数组参数获取形状
                 for a in args:
@@ -113,6 +168,9 @@ class BacktestService:
         trades = []
         
         try:
+            # 解析策略代码:JSON配置自动转Python代码
+            resolved_code = _resolve_code(request.code)
+            
             # 执行init
             local_vars = {}
             global_vars = {
@@ -125,7 +183,7 @@ class BacktestService:
                 "buy": lambda s, p, r: trades.append({"day": len(trades), "type": "buy", "symbol": s, "price": p, "reason": r}) or context.portfolio.positions.update({s: {"cost_price": p, "qty": 1}}) or context.portfolio.__setattr__("cash", context.portfolio.cash - p),
                 "sell": lambda s, p, r: trades.append({"day": len(trades), "type": "sell", "symbol": s, "price": p, "reason": r}) or context.portfolio.positions.pop(s, None) or context.portfolio.__setattr__("cash", context.portfolio.cash + p),
             }
-            exec(request.code, global_vars, local_vars)
+            exec(resolved_code, global_vars, local_vars)
             
             if "init" in local_vars:
                 local_vars["init"](context)
@@ -133,7 +191,7 @@ class BacktestService:
             # 用请求的股票代码覆盖策略中硬编码的 symbol
             context.symbol = symbol
             
-            # 获取策略参数（从context或代码中）
+            # 获取策略参数(从context或代码中)
             ma_short = getattr(context, "ma_short", 5)
             ma_long = getattr(context, "ma_long", 20)
             stop_loss = getattr(context, "stop_loss", -0.08)
@@ -153,13 +211,13 @@ class BacktestService:
                     "volume": df.iloc[i]["volume"],
                 }}
                 
-                # 执行handle_data — get_kline 只返回截止当前的数据，避免未来穿越
+                # 执行handle_data -- get_kline 只返回截止当前的数据,避免未来穿越
                 def make_get_kline(idx):
                     return lambda s, **kw: df.iloc[:idx+1] if s == symbol else None
                 
                 if "handle_data" in local_vars:
                     try:
-                        # 替换 get_kline（需同时更新全局和局部作用域）
+                        # 替换 get_kline(需同时更新全局和局部作用域)
                         g = make_get_kline(i)
                         local_vars["get_kline"] = g
                         global_vars["get_kline"] = g
@@ -179,21 +237,21 @@ class BacktestService:
                 if sell_trades:
                     total_return = (sell_trades[-1]["price"] - cost) / cost * 100
                 else:
-                    # 未平仓：用最新价估算
+                    # 未平仓:用最新价估算
                     total_return = (close_prices[-1] - cost) / cost * 100
             else:
                 total_return = 0
             
             final_capital = initial_capital * (1 + total_return / 100)
             
-            # 计算年化收益（用交易日数估算）
+            # 计算年化收益(用交易日数估算)
             num_days = len(close_prices)
             if num_days > 0 and total_return != 0:
                 annual_return = ((1 + total_return / 100) ** (252 / num_days) - 1) * 100
             else:
                 annual_return = 0.0
             
-            # 计算最大回撤 — 同时构建完整资金曲线
+            # 计算最大回撤 -- 同时构建完整资金曲线
             equity_curve = [initial_capital]
             for t in trades:
                 if t["type"] == "buy":
@@ -206,12 +264,12 @@ class BacktestService:
             else:
                 max_drawdown = 0.0
             
-            # 构建每日资金曲线（用于前端图表）
+            # 构建每日资金曲线(用于前端图表)
             # 按交易日逐日计算资金变化
             full_equity_curve = []
             cash = initial_capital
             position_cost = 0  # 持仓成本
-            position_qty = 0   # 持仓数量（简化：1股为单位）
+            position_qty = 0   # 持仓数量(简化:1股为单位)
             peak_value = initial_capital
             
             for i, (idx, row) in enumerate(df.iterrows()):
@@ -246,12 +304,12 @@ class BacktestService:
                     drawdown=round(drawdown_pct, 2)
                 ))
             
-            # 重新计算最大回撤（基于完整曲线）
+            # 重新计算最大回撤(基于完整曲线)
             if len(full_equity_curve) > 1:
                 max_drawdown = min(p.drawdown for p in full_equity_curve)
             
-            # 计算胜率：基于配对原则
-            # 按交易顺序配对买入和卖出（FIFO）
+            # 计算胜率:基于配对原则
+            # 按交易顺序配对买入和卖出(FIFO)
             buy_prices_ordered = [t["price"] for t in trades if t["type"] == "buy"]
             sell_prices_ordered = [t["price"] for t in trades if t["type"] == "sell"]
             buy_original = buy_prices_ordered.copy()  # 保留原始顺序用于盈亏比计算
@@ -263,7 +321,7 @@ class BacktestService:
                         wins += 1
             win_rate = (wins / len(sell_prices_ordered) * 100) if sell_prices_ordered else 0.0
             
-            # 夏普比率（简化：用日收益率）
+            # 夏普比率(简化:用日收益率)
             if len(close_prices) > 1:
                 daily_returns = [(close_prices[i] - close_prices[i-1]) / close_prices[i-1] for i in range(1, len(close_prices))]
                 avg_return = np.mean(daily_returns)
@@ -272,7 +330,7 @@ class BacktestService:
             else:
                 sharpe_ratio = 0
             
-            # 盈亏比（总盈利/总亏损）
+            # 盈亏比(总盈利/总亏损)
             if sell_prices_ordered and buy_original:
                 gross_gain = sum(max(0, s - b) for s, b in zip(sell_prices_ordered, buy_original))
                 gross_loss = sum(max(0, b - s) for s, b in zip(sell_prices_ordered, buy_original))
