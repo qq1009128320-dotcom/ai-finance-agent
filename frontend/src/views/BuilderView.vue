@@ -180,6 +180,39 @@
       <button class="btn btn-secondary" @click="runHistoricalScreen">📋 按此模型选股</button>
       <button class="btn btn-secondary" @click="saveStrategy">💾 保存策略</button>
     </div>
+
+    <!-- 回测结果展示 -->
+    <div v-if="backtestResult" class="result-section card">
+      <h2 class="card-title">📊 回测结果</h2>
+      <div class="result-metrics">
+        <div class="result-metric"><span class="metric-label">总收益</span><span class="metric-value" :class="backtestResult.metrics?.total_return >= 0 ? 'text-up' : 'text-down'">{{ backtestResult.metrics?.total_return?.toFixed(2) }}%</span></div>
+        <div class="result-metric"><span class="metric-label">年化收益</span><span class="metric-value" :class="backtestResult.metrics?.annual_return >= 0 ? 'text-up' : 'text-down'">{{ (backtestResult.metrics?.annual_return || 0).toFixed(2) }}%</span></div>
+        <div class="result-metric"><span class="metric-label">夏普比率</span><span class="metric-value">{{ (backtestResult.metrics?.sharpe_ratio || 0).toFixed(2) }}</span></div>
+        <div class="result-metric"><span class="metric-label">最大回撤</span><span class="metric-value text-down">{{ (backtestResult.metrics?.max_drawdown || 0).toFixed(2) }}%</span></div>
+        <div class="result-metric"><span class="metric-label">交易次数</span><span class="metric-value">{{ backtestResult.metrics?.total_trades || 0 }}</span></div>
+        <div class="result-metric"><span class="metric-label">胜率</span><span class="metric-value">{{ (backtestResult.metrics?.win_rate || 0).toFixed(1) }}%</span></div>
+        <div class="result-metric"><span class="metric-label">盈亏比</span><span class="metric-value">{{ (backtestResult.metrics?.profit_factor || 0).toFixed(2) }}</span></div>
+      </div>
+    </div>
+
+    <!-- 选股结果展示 -->
+    <div v-if="picks.length > 0" class="result-section card">
+      <h2 class="card-title">📋 选股结果 <span class="result-subtitle">共 {{ picks.length }} 只股票</span></h2>
+      <div class="picks-table">
+        <div class="picks-header">
+          <span class="picks-col-code">代码</span>
+          <span class="picks-col-name">名称</span>
+          <span class="picks-col-price">现价</span>
+          <span class="picks-col-change">涨跌幅</span>
+        </div>
+        <div v-for="s in picks" :key="s.symbol" class="picks-row">
+          <span class="picks-col-code">{{ s.symbol }}</span>
+          <span class="picks-col-name">{{ s.name }}</span>
+          <span class="picks-col-price">{{ s.price?.toFixed(2) }}</span>
+          <span class="picks-col-change" :class="s.change_pct >= 0 ? 'text-up' : 'text-down'">{{ s.change_pct >= 0 ? '+' : '' }}{{ s.change_pct?.toFixed(2) }}%</span>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -293,7 +326,7 @@ def handle_data(context, data):
 
   backtestApi.run({ code, symbol: '600036', initial_capital: 100000 }).then(r => {
     backtestResult.value = r.data
-    alert(`回测完成: ${r.data.metrics.total_trades}笔交易, 收益${r.data.metrics.total_return}%`)
+    store.setError(null)
   }).catch(() => store.setError('回测失败'))
 }
 
@@ -305,11 +338,6 @@ async function runHistoricalScreen() {
     })).json()
     picks.value = r.stocks || []
     store.setError(null)
-    if (r.total > 0) {
-      alert(`✅ 选股完成: ${r.total}只股票满足条件\n${r.stocks.slice(0,5).map((s:any) => s.name+'('+s.symbol+')').join('、')}${r.total > 5 ? '...' : ''}`)
-    } else {
-      alert('⚠️ 没有股票满足当前条件，请放宽筛选条件')
-    }
   } catch { store.setError('选股失败，接口不可用') }
 }
 
@@ -421,6 +449,26 @@ function loadStrategy() { window.location.href = '/strategies' }
 
 /* 底部 */
 .bottom-bar { display: flex; gap: 12px; justify-content: center; margin-top: 24px; padding: 16px; }
+
+/* 结果展示区 */
+.result-section { margin-top: 16px; }
+.result-subtitle { font-size: 22px; color: var(--text-muted); font-weight: 400; margin-left: 8px; }
+.result-metrics { display: flex; flex-wrap: wrap; gap: 12px; }
+.result-metric { flex: 1; min-width: 120px; padding: 12px 16px; background: var(--bg-main); border-radius: var(--radius-md); text-align: center; }
+.metric-label { display: block; font-size: 22px; color: var(--text-muted); margin-bottom: 4px; }
+.metric-value { font-size: 28px; font-weight: 700; color: var(--text-primary); }
+.text-up { color: var(--up); }
+.text-down { color: var(--down); }
+
+/* 选股结果表格 */
+.picks-table { width: 100%; }
+.picks-header { display: flex; padding: 10px 0; border-bottom: 2px solid var(--border); font-size: 24px; color: var(--text-muted); font-weight: 500; }
+.picks-row { display: flex; align-items: center; padding: 12px 0; border-bottom: 1px solid rgba(0,0,0,0.04); font-size: 26px; transition: background 0.15s; }
+.picks-row:hover { background: var(--bg-card-hover); }
+.picks-col-code { flex: 1.2; font-family: monospace; }
+.picks-col-name { flex: 2; }
+.picks-col-price { flex: 1; text-align: right; }
+.picks-col-change { flex: 1; text-align: right; font-weight: 600; }
 
 .disclaimer { margin-top: 24px; padding: 16px 20px; font-size: 24px; line-height: 1.8; color: var(--text-muted); background: rgba(255,255,255,0.02); }
 .disclaimer p { margin-bottom: 4px; }

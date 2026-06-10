@@ -34,6 +34,14 @@ class StrategyService:
         if not code:
             return False, "策略代码为空"
         
+        # JSON格式的策略配置（来自策略编辑器），跳过代码验证
+        if code.strip().startswith("{"):
+            try:
+                json.loads(code)
+                return True, "策略配置有效"
+            except json.JSONDecodeError as e:
+                return False, f"策略配置格式错误: {e}"
+        
         # 检查必需函数
         if "def init(" not in code:
             return False, "缺少 init() 函数"
