@@ -32,7 +32,7 @@
     </div>
 
     <!-- 结果区 -->
-    <template v-else-if="result">
+    <template v-if="result">
       <!-- 指标卡 -->
       <div class="metric-grid">
         <div class="metric-card card-wide">
@@ -191,7 +191,7 @@
     </template>
 
     <!-- 空状态 -->
-    <div v-else class="empty-state">
+    <div v-if="!loading && !result" class="empty-state">
       <div class="empty-state-icon">📊</div>
       <p>👆 输入股票代码，点击「开始分析」获取28因子量化报告</p>
     </div>
