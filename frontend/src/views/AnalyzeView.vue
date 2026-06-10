@@ -26,9 +26,22 @@
     </div>
 
     <!-- K线图区 -->
-    <div v-if="klineData && klineData.klines && klineData.klines.length > 0" class="card" style="margin-bottom: var(--space-lg);">
-      <h2 class="card-title">📊 K线走势 ({{ klineData.name }})</h2>
-      <div ref="klineChartRef" style="width: 100%; height: 480px;"></div>
+    <div v-if="klineData && klineData.klines && klineData.klines.length > 0" class="card kline-card">
+      <div class="kline-header">
+        <h2 class="card-title" style="margin-bottom:0;">{{ klineData.name }} ({{ symbolInput.toUpperCase() }})</h2>
+        <span class="kline-price" v-if="lastPrice">
+          <span class="price-last">{{ lastPrice.toFixed(2) }}</span>
+          <span class="price-change" :class="priceChange >= 0 ? 'text-up' : 'text-down'">
+            {{ priceChange >= 0 ? '+' : '' }}{{ priceChange.toFixed(2) }}%
+          </span>
+        </span>
+      </div>
+      <div class="kline-tabs">
+        <button v-for="p in periods" :key="p.key" class="kline-tab" :class="{ active: activePeriod === p.key }" @click="switchPeriod(p.key)">
+          {{ p.label }}
+        </button>
+      </div>
+      <div ref="klineChartRef" style="width: 100%; height: 510px;"></div>
     </div>
 
     <!-- 结果区 -->
@@ -217,6 +230,16 @@ const activeDim = ref(0)
 const klineData = ref<any>(null)
 const klineChartRef = ref<HTMLElement | null>(null)
 let klineChart: echarts.ECharts | null = null
+const activePeriod = ref('day')
+const lastPrice = ref(0)
+const priceChange = ref(0)
+const periods = [
+  { key: 'fenshi', label: '分时' },
+  { key: 'fiver', label: '五日' },
+  { key: 'day', label: '日K' },
+  { key: 'week', label: '周K' },
+  { key: 'month', label: '月K' },
+]
 
 const riskMetricsList = computed(() => {
   if (!result.value?.risk_metrics) return []
@@ -244,12 +267,12 @@ async function handleAnalyze() {
   loading.value = true
   result.value = null
   klineData.value = null
+  activePeriod.value = 'day'
 
-  // 并行获取量化分析和K线数据
   try {
     const [analyzeRes, klineRes] = await Promise.all([
       quantApi.analyze({ symbol: input }),
-      fetch(`/api/v1/quant/kline?symbol=${input}&period=day&count=120`).then(r => r.json()),
+      fetchKline(input, 'day', 120),
     ])
     result.value = analyzeRes.data
     klineData.value = klineRes
@@ -266,93 +289,189 @@ async function handleAnalyze() {
   }
 }
 
+function fetchKline(symbol: string, period: string, count: number) {
+  return fetch('/api/v1/quant/kline?symbol=' + symbol + '&period=' + period + '&count=' + count).then(r => r.json())
+}
+
+async function switchPeriod(period: string) {
+  activePeriod.value = period
+  const input = symbolInput.value.trim()
+  if (!input) return
+  
+  try {
+    const map: Record<string, { period: string; count: number }> = {
+      fenshi: { period: 'min5', count: 96 },
+      fiver: { period: 'min60', count: 30 },
+      day: { period: 'day', count: 120 },
+      week: { period: 'week', count: 60 },
+      month: { period: 'month', count: 60 },
+    }
+    const cfg = map[period] || map.day
+    const res = await fetchKline(input, cfg.period, cfg.count)
+    klineData.value = res
+    await nextTick()
+    renderKlineChart()
+  } catch (e) {
+    console.error('[kline] switch period error:', e)
+  }
+}
+
 function renderKlineChart() {
   if (!klineChartRef.value || !klineData.value?.klines?.length) return
 
   if (klineChart) klineChart.dispose()
-  klineChart = echarts.init(klineChartRef.value)
+  klineChart = echarts.init(klineChartRef.value, undefined, { renderer: 'canvas' })
 
   const d = klineData.value
-  const dates = d.klines.map((k: any) => k[0])
-  const ohlc = d.klines.map((k: any) => [k[1], k[2], k[3], k[4]])
-  const vols = d.klines.map((k: any) => k[5])
+  const isFenshi = activePeriod.value === 'fenshi'
+  const isFiver = activePeriod.value === 'fiver'
 
-  // 计算vol颜色
+  const dates = d.klines.map((k: any) => k[0])
+  const opens = d.klines.map((k: any) => k[1])
+  const closes = d.klines.map((k: any) => k[2])
+  const highs = d.klines.map((k: any) => k[3])
+  const lows = d.klines.map((k: any) => k[4])
+  const vols = d.klines.map((k: any) => k[5])
   const volColors = d.klines.map((k: any) => (k[2] >= k[1] ? '#ef4444' : '#22c55e'))
 
-  const option: EChartsOption = {
-    tooltip: {
-      trigger: 'axis',
-      axisPointer: { type: 'cross' },
-    },
-    legend: {
-      data: ['K线', 'MA5', 'MA10', 'MA20', 'MA60', '成交量'],
-      textStyle: { fontSize: 18, color: 'var(--text-secondary)' },
-      top: 0,
-    },
-    grid: [
-      { left: '6%', right: '6%', top: '10%', height: '55%' },
-      { left: '6%', right: '6%', top: '73%', height: '20%' },
-    ],
-    xAxis: [
-      {
-        type: 'category', data: dates, gridIndex: 0,
-        axisLabel: { fontSize: 14, color: 'var(--text-secondary)', interval: Math.floor(dates.length / 10) },
-        axisLine: { lineStyle: { color: 'var(--border)' } },
-      },
-      {
-        type: 'category', data: dates, gridIndex: 1,
-        axisLabel: { show: false },
-        axisLine: { lineStyle: { color: 'var(--border)' } },
-      },
-    ],
-    yAxis: [
-      {
-        type: 'value', gridIndex: 0, scale: true,
-        splitLine: { lineStyle: { color: 'var(--border)', opacity: 0.3 } },
-        axisLabel: { fontSize: 14, color: 'var(--text-secondary)' },
-      },
-      {
-        type: 'value', gridIndex: 1,
-        splitLine: { show: false },
-        axisLabel: { fontSize: 12, color: 'var(--text-secondary)', formatter: (v: number) => v >= 10000 ? (v / 10000).toFixed(0) + '万' : String(v) },
-      },
-    ],
-    series: [
-      {
-        name: 'K线', type: 'candlestick', xAxisIndex: 0, yAxisIndex: 0,
-        itemStyle: { color: '#ef4444', color0: '#22c55e', borderColor: '#ef4444', borderColor0: '#22c55e' },
-        data: ohlc,
-      },
-      {
-        name: 'MA5', type: 'line', xAxisIndex: 0, yAxisIndex: 0,
-        symbol: 'none', lineStyle: { width: 1.5, color: '#f59e0b' },
-        data: d.ma5,
-      },
-      {
-        name: 'MA10', type: 'line', xAxisIndex: 0, yAxisIndex: 0,
-        symbol: 'none', lineStyle: { width: 1.5, color: '#3b82f6' },
-        data: d.ma10,
-      },
-      {
-        name: 'MA20', type: 'line', xAxisIndex: 0, yAxisIndex: 0,
-        symbol: 'none', lineStyle: { width: 1.5, color: '#8b5cf6' },
-        data: d.ma20,
-      },
-      {
-        name: 'MA60', type: 'line', xAxisIndex: 0, yAxisIndex: 0,
-        symbol: 'none', lineStyle: { width: 1.5, color: '#ec4899' },
-        data: d.ma60,
-      },
-      {
-        name: '成交量', type: 'bar', xAxisIndex: 1, yAxisIndex: 1,
-        itemStyle: { color: (p: any) => volColors[p.dataIndex] },
-        data: vols,
-      },
-    ],
+  // update price header
+  const last = d.klines[d.klines.length - 1]
+  if (last) {
+    lastPrice.value = last[2]
+    priceChange.value = d.klines.length > 1
+      ? ((last[2] - d.klines[0][1]) / d.klines[0][1] * 100)
+      : 0
   }
 
-  klineChart.setOption(option)
+  if (isFenshi) {
+    // ===== 分时图: 线图+面积填充+成交量 =====
+    const basePrice = opens[0]
+    const pctData = closes.map((c: number) => +((c - basePrice) / basePrice * 100).toFixed(2))
+    const option: EChartsOption = {
+      tooltip: {
+        trigger: 'axis', axisPointer: { type: 'cross' },
+        formatter: (params: any) => {
+          const p = params[0]
+          const idx = p.dataIndex
+          return '<div style="font-size:20px;margin-bottom:4px;">' + dates[idx] + '</div>' +
+            '<div style="font-size:22px;">价格: <b>' + closes[idx].toFixed(2) + '</b></div>' +
+            '<div style="font-size:18px;color:' + (pctData[idx] >= 0 ? '#ef4444' : '#22c55e') + ';">涨幅: ' + (pctData[idx] >= 0 ? '+' : '') + pctData[idx] + '%</div>' +
+            '<div style="font-size:18px;">成交量: ' + vols[idx].toFixed(0) + '</div>'
+        }
+      },
+      grid: [{ left: '6%', right: '6%', top: '8%', height: '53%' }, { left: '6%', right: '6%', top: '68%', height: '24%' }],
+      xAxis: [
+        { type: 'category', data: dates, gridIndex: 0, axisLabel: { fontSize: 13, color: 'var(--text-secondary)', interval: Math.floor(dates.length / 6) }, axisLine: { lineStyle: { color: 'var(--border)' } } },
+        { type: 'category', data: dates, gridIndex: 1, axisLabel: { show: false }, axisLine: { lineStyle: { color: 'var(--border)' } } },
+      ],
+      yAxis: [
+        { type: 'value', gridIndex: 0, scale: true, splitLine: { lineStyle: { color: 'var(--border)', opacity: 0.3, type: 'dashed' } }, axisLabel: { fontSize: 13, color: 'var(--text-secondary)' } },
+        { type: 'value', gridIndex: 1, splitLine: { show: false }, axisLabel: { fontSize: 12, color: 'var(--text-secondary)', formatter: (v: number) => v >= 10000 ? (v / 10000).toFixed(0) + '万' : String(v) } },
+      ],
+      series: [
+        {
+          name: '价格', type: 'line', xAxisIndex: 0, yAxisIndex: 0,
+          smooth: true, symbol: 'none', lineStyle: { width: 2, color: '#3b82f6' },
+          areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: 'rgba(59,130,246,0.3)' }, { offset: 1, color: 'rgba(59,130,246,0.02)' }]) },
+          data: closes,
+          markLine: {
+            silent: true,
+            data: [{ yAxis: basePrice, label: { formatter: '昨收 ' + basePrice.toFixed(2), fontSize: 13, color: 'var(--text-muted)' }, lineStyle: { color: 'rgba(255,255,255,0.25)', type: 'dashed' } }],
+          },
+        },
+        { name: '成交量', type: 'bar', xAxisIndex: 1, yAxisIndex: 1, itemStyle: { color: (p: any) => volColors[p.dataIndex] }, data: vols },
+      ],
+    }
+    klineChart.setOption(option)
+  } else if (isFiver) {
+    // ===== 五日: 小蜡烛+MA5+成交量 =====
+    const option: EChartsOption = {
+      tooltip: {
+        trigger: 'axis', axisPointer: { type: 'cross' },
+        formatter: (params: any) => {
+          const p = params.find((x: any) => x.seriesName === 'K线') || params[1]
+          const idx = p.dataIndex
+          return '<div style="font-size:20px;margin-bottom:4px;">' + dates[idx] + '</div>' +
+            '<div style="font-size:20px;">开 ' + opens[idx].toFixed(2) + ' 收 ' + closes[idx].toFixed(2) + '</div>' +
+            '<div style="font-size:20px;">高 ' + highs[idx].toFixed(2) + ' 低 ' + lows[idx].toFixed(2) + '</div>' +
+            '<div style="font-size:18px;">成交量: ' + vols[idx].toFixed(0) + '</div>'
+        }
+      },
+      grid: [{ left: '6%', right: '6%', top: '8%', height: '53%' }, { left: '6%', right: '6%', top: '68%', height: '24%' }],
+      xAxis: [
+        { type: 'category', data: dates, gridIndex: 0, axisLabel: { fontSize: 13, color: 'var(--text-secondary)', interval: 3, rotate: 30 }, axisLine: { lineStyle: { color: 'var(--border)' } } },
+        { type: 'category', data: dates, gridIndex: 1, axisLabel: { show: false }, axisLine: { lineStyle: { color: 'var(--border)' } } },
+      ],
+      yAxis: [
+        { type: 'value', gridIndex: 0, scale: true, splitLine: { lineStyle: { color: 'var(--border)', opacity: 0.25, type: 'dashed' } }, axisLabel: { fontSize: 13, color: 'var(--text-secondary)' } },
+        { type: 'value', gridIndex: 1, splitLine: { show: false }, axisLabel: { fontSize: 12, color: 'var(--text-secondary)', formatter: (v: number) => v >= 10000 ? (v / 10000).toFixed(0) + '万' : String(v) } },
+      ],
+      series: [
+        { name: 'K线', type: 'candlestick', xAxisIndex: 0, yAxisIndex: 0, itemStyle: { color: '#ef4444', color0: '#22c55e', borderColor: '#ef4444', borderColor0: '#22c55e' }, data: d.klines.map((k: any) => [k[1], k[2], k[3], k[4]]) },
+        { name: 'MA5', type: 'line', xAxisIndex: 0, yAxisIndex: 0, symbol: 'none', lineStyle: { width: 1.5, color: '#f59e0b' }, data: d.ma5 },
+        { name: '成交量', type: 'bar', xAxisIndex: 1, yAxisIndex: 1, itemStyle: { color: (p: any) => volColors[p.dataIndex] }, data: vols },
+      ],
+    }
+    klineChart.setOption(option)
+  } else {
+    // ===== 日K/周K/月K: 标准蜡烛图 + 对应均线 + 成交量 =====
+    const ohlc = d.klines.map((k: any) => [k[1], k[2], k[3], k[4]])
+    const option: EChartsOption = {
+      tooltip: {
+        trigger: 'axis', axisPointer: { type: 'cross' },
+        formatter: (params: any) => {
+          const p = params.find((x: any) => x.seriesName === 'K线') || params[1]
+          const idx = p.dataIndex
+          return '<div style="font-size:20px;margin-bottom:4px;">' + dates[idx] + '</div>' +
+            '<div style="font-size:20px;">开 ' + opens[idx].toFixed(2) + ' 收 ' + closes[idx].toFixed(2) + '</div>' +
+            '<div style="font-size:20px;">高 ' + highs[idx].toFixed(2) + ' 低 ' + lows[idx].toFixed(2) + '</div>' +
+            '<div style="font-size:18px;">成交量: ' + vols[idx].toFixed(0) + '</div>'
+        }
+      },
+      legend: {
+        data: ['K线', 'MA5', 'MA10', 'MA20', 'MA60', '成交量'],
+        textStyle: { fontSize: 16, color: 'var(--text-secondary)' },
+        top: 2,
+      },
+      grid: [
+        { left: '6%', right: '6%', top: '12%', height: '50%' },
+        { left: '6%', right: '6%', top: '68%', height: '24%' },
+      ],
+      xAxis: [
+        {
+          type: 'category', data: dates, gridIndex: 0,
+          axisLabel: { fontSize: 13, color: 'var(--text-secondary)', interval: Math.floor(dates.length / 10) },
+          axisLine: { lineStyle: { color: 'var(--border)' } },
+        },
+        {
+          type: 'category', data: dates, gridIndex: 1,
+          axisLabel: { show: false },
+          axisLine: { lineStyle: { color: 'var(--border)' } },
+        },
+      ],
+      yAxis: [
+        {
+          type: 'value', gridIndex: 0, scale: true,
+          splitLine: { lineStyle: { color: 'var(--border)', opacity: 0.3 } },
+          axisLabel: { fontSize: 13, color: 'var(--text-secondary)' },
+        },
+        {
+          type: 'value', gridIndex: 1,
+          splitLine: { show: false },
+          axisLabel: { fontSize: 12, color: 'var(--text-secondary)', formatter: (v: number) => v >= 10000 ? (v / 10000).toFixed(0) + '万' : String(v) },
+        },
+      ],
+      series: [
+        { name: 'K线', type: 'candlestick', xAxisIndex: 0, yAxisIndex: 0, itemStyle: { color: '#ef4444', color0: '#22c55e', borderColor: '#ef4444', borderColor0: '#22c55e' }, data: ohlc },
+        { name: 'MA5', type: 'line', xAxisIndex: 0, yAxisIndex: 0, symbol: 'none', lineStyle: { width: 1.5, color: '#f59e0b' }, data: d.ma5 },
+        { name: 'MA10', type: 'line', xAxisIndex: 0, yAxisIndex: 0, symbol: 'none', lineStyle: { width: 1.5, color: '#3b82f6' }, data: d.ma10 },
+        { name: 'MA20', type: 'line', xAxisIndex: 0, yAxisIndex: 0, symbol: 'none', lineStyle: { width: 1.5, color: '#8b5cf6' }, data: d.ma20 },
+        { name: 'MA60', type: 'line', xAxisIndex: 0, yAxisIndex: 0, symbol: 'none', lineStyle: { width: 1.5, color: '#ec4899' }, data: d.ma60 },
+        { name: '成交量', type: 'bar', xAxisIndex: 1, yAxisIndex: 1, itemStyle: { color: (p: any) => volColors[p.dataIndex] }, data: vols },
+      ],
+    }
+    klineChart.setOption(option)
+  }
   klineChart.resize()
 }
 
@@ -697,6 +816,24 @@ function formatTechValue(val: any): string {
 .card-wide {
   grid-column: span 2;
 }
+
+/* K线卡片 */
+.kline-card { margin-bottom: var(--space-lg); }
+.kline-header { display: flex; align-items: baseline; gap: 16px; margin-bottom: 8px; }
+.kline-price { display: flex; align-items: baseline; gap: 8px; }
+.price-last { font-size: 36px; font-weight: 700; color: var(--text-primary); }
+.price-change { font-size: 26px; font-weight: 600; }
+.text-up { color: #ef4444; }
+.text-down { color: #22c55e; }
+
+/* 周期切换标签 */
+.kline-tabs { display: flex; gap: 2px; margin-bottom: 8px; border-bottom: 1px solid var(--border); }
+.kline-tab {
+  padding: 8px 18px; font-size: 26px; cursor: pointer; border: none; background: none;
+  color: var(--text-muted); border-bottom: 2px solid transparent; transition: all .15s;
+}
+.kline-tab:hover { color: var(--text-secondary); }
+.kline-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
 
 .stock-name {
   white-space: nowrap;
