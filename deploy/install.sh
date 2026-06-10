@@ -23,6 +23,10 @@ if [ "$EUID" -ne 0 ]; then
     exit 1
 fi
 
+# 禁止交互式提示（Ubuntu 的弹窗）
+export DEBIAN_FRONTEND=noninteractive
+export NEEDRESTART_MODE=a
+
 # 项目路径（脚本所在目录的上一级）
 PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 echo "📁 项目路径: $PROJECT_DIR"
@@ -34,7 +38,7 @@ echo ""
 echo "📦 [1/8] 安装系统依赖..."
 
 apt-get update -qq
-apt-get install -y -qq python3 python3-pip python3-venv git curl nginx
+apt-get install -y -qq -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" python3 python3-pip python3-venv git curl nginx
 
 echo "   ✅ 系统依赖安装完成"
 python3 --version
