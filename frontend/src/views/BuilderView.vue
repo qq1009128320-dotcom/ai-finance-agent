@@ -186,7 +186,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed } from 'vue'
 import { useAppStore } from '@/stores/app'
-import { backtestApi } from '@/api'
+import { backtestApi, strategyApi } from '@/api'
 
 const store = useAppStore()
 const step = ref(1)
@@ -304,19 +304,49 @@ async function runHistoricalScreen() {
       body: JSON.stringify({ pool: config.pool, conditions: config.conditions, condition_logic: config.conditionLogic, limit: 50 }),
     })).json()
     picks.value = r.stocks || []
-    alert(`选股完成: ${r.total}只股票满足条件`)
-  } catch { store.setError('选股失败') }
+    store.setError(null)
+    if (r.total > 0) {
+      alert(`✅ 选股完成: ${r.total}只股票满足条件\n${r.stocks.slice(0,5).map((s:any) => s.name+'('+s.symbol+')').join('、')}${r.total > 5 ? '...' : ''}`)
+    } else {
+      alert('⚠️ 没有股票满足当前条件，请放宽筛选条件')
+    }
+  } catch { store.setError('选股失败，接口不可用') }
 }
 
 async function saveStrategy() {
   if (!strategyName.value.trim()) { store.setError('请输入策略名称'); return }
   try {
-    const r = await (await fetch('/api/v1/strategy/create', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: strategyName.value, code: '# 手动配置策略', description: '策略配置', tags: [] }),
-    })).json()
-    if (r.id) { alert('✅ 已保存'); store.setError(null) }
-  } catch { store.setError('保存失败') }
+    // 把完整配置序列化保存
+    const strategyConfig = {
+      pool: config.pool,
+      poolLimit: config.poolLimit,
+      rebalanceDays: config.rebalanceDays,
+      conditions: config.conditions,
+      conditionLogic: config.conditionLogic,
+      rankBy: config.rankBy,
+      rankOrder: config.rankOrder,
+      rankTop: config.rankTop,
+      buyCondition: config.buyCondition,
+      buyPosition: config.buyPosition,
+      takeProfit: config.takeProfit,
+      stopLoss: config.stopLoss,
+      trailingStop: config.trailingStop,
+      maxPositions: config.maxPositions,
+      maxSinglePct: config.maxSinglePct,
+      rebalanceFreq: config.rebalanceFreq,
+      enableTiming: config.enableTiming,
+      timingConditions: config.timingConditions,
+    }
+    const r = await strategyApi.create({
+      name: strategyName.value,
+      code: JSON.stringify(strategyConfig),
+      description: `策略编辑器手动配置 | 条件逻辑:${config.conditionLogic} 买入:${config.buyCondition} 止盈:${config.takeProfit}% 止损:${config.stopLoss}%`,
+      tags: ['策略编辑器'],
+    })
+    if (r.data.id) { alert('✅ 策略已保存'); store.setError(null) }
+  } catch (e: any) {
+    store.setError(e?.response?.data?.detail || '保存失败')
+  }
 }
 
 function loadStrategy() { window.location.href = '/strategies' }
