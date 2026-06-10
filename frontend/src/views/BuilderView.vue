@@ -299,10 +299,11 @@ function runBacktest() {
 def init(context):
     context.symbol = "600036"
     context.ma_short = 5; context.ma_long = 20
-    context.stop_loss = -${config.stopLoss / 100}
-    context.take_profit = ${config.takeProfit / 100}
-    context.trailing_stop = ${config.trailingStop / 100}
-    context.max_positions = ${config.maxPositions}
+    context.stop_loss = -${Number(config.stopLoss) / 100}
+    context.take_profit = ${Number(config.takeProfit) / 100}
+    context.trailing_stop = ${Number(config.trailingStop) / 100}
+    context.max_positions = ${Number(config.maxPositions)}
+    context.highest_price = 0
 def handle_data(context, data):
     symbol = context.symbol
     current_price = data[symbol]["close"]
@@ -317,12 +318,14 @@ def handle_data(context, data):
             buy(symbol, current_price, "金叉买入")
             return
     if position is not None:
-        cost = position["cost_price"]; pnl = (current_price - cost) / cost
-        if current_price > context.highest_price: context.highest_price = current_price
-        dd = (context.highest_price - current_price) / context.highest_price if context.highest_price > 0 else 0
+        cost = position.get("cost_price", current_price); pnl = (current_price - cost) / max(cost, 0.01)
+        if context.highest_price is None or current_price > context.highest_price:
+            context.highest_price = current_price
+        highest = context.highest_price if context.highest_price and context.highest_price > 0 else current_price
+        dd = (highest - current_price) / highest
         if pnl >= context.take_profit: sell(symbol, current_price, "止盈"); return
         if pnl <= context.stop_loss: sell(symbol, current_price, "止损"); return
-        if dd >= context.trailing_stop and pnl > 0: sell(symbol, current_price, "跟踪止损"); return`
+        if pnl > 0 and dd >= context.trailing_stop: sell(symbol, current_price, "跟踪止损"); return`
 
   backtestApi.run({ code, symbol: '600036', initial_capital: 100000 }).then(r => {
     backtestResult.value = r.data
