@@ -12,6 +12,56 @@ from services.quant import quant_service
 router = APIRouter()
 
 
+@router.get("/kline")
+async def get_kline_data(symbol: str = "600036", period: str = "day", count: int = 120):
+    """获取K线数据供前端K线图渲染"""
+    from services.data import data_service
+
+    klines = None
+    name = symbol
+
+    try:
+        klines = data_service.get_kline(symbol, period=period, count=count)
+    except Exception as e:
+        print(f"[quant/kline] get_kline error: {e}")
+
+    if not klines:
+        return {"symbol": symbol, "name": name, "klines": [], "ma5": [], "ma10": [], "ma20": [], "ma60": []}
+
+    try:
+        quote = data_service.get_quote(symbol)
+        if quote and "name" in quote:
+            name = quote["name"]
+    except Exception:
+        pass
+
+    result_klines = []
+    closes = []
+    for k in klines:
+        if len(k) >= 6:
+            result_klines.append([k[0], float(k[1]), float(k[2]), float(k[3]), float(k[4]), float(k[5])])
+            closes.append(float(k[2]))
+
+    def sma(data, n):
+        res = []
+        for i in range(len(data)):
+            if i < n - 1:
+                res.append(None)
+            else:
+                res.append(round(sum(data[i-n+1:i+1]) / n, 2))
+        return res
+
+    return {
+        "symbol": symbol,
+        "name": name,
+        "klines": result_klines,
+        "ma5": sma(closes, 5),
+        "ma10": sma(closes, 10),
+        "ma20": sma(closes, 20),
+        "ma60": sma(closes, 60),
+    }
+
+
 @router.post("/analyze", response_model=QuantAnalysisResponse)
 async def analyze_stock(request: QuantAnalysisRequest):
     """

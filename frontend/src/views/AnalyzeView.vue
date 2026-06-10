@@ -25,6 +25,12 @@
       <p>正在分析 {{ symbolInput }} ...</p>
     </div>
 
+    <!-- K线图区 -->
+    <div v-if="klineData && klineData.klines && klineData.klines.length > 0" class="card" style="margin-bottom: var(--space-lg);">
+      <h2 class="card-title">📊 K线走势 ({{ klineData.name }})</h2>
+      <div ref="klineChartRef" style="width: 100%; height: 480px;"></div>
+    </div>
+
     <!-- 结果区 -->
     <template v-else-if="result">
       <!-- 指标卡 -->
@@ -193,11 +199,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, onUnmounted, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import { quantApi } from '@/api'
 import { useAppStore } from '@/stores/app'
 import type { AnalysisResult } from '@/stores/app'
+import * as echarts from 'echarts'
+import type { EChartsOption } from 'echarts'
 
 const route = useRoute()
 const store = useAppStore()
@@ -206,6 +214,9 @@ const symbolInput = ref('')
 const loading = ref(false)
 const result = ref<AnalysisResult | null>(null)
 const activeDim = ref(0)
+const klineData = ref<any>(null)
+const klineChartRef = ref<HTMLElement | null>(null)
+let klineChart: echarts.ECharts | null = null
 
 const riskMetricsList = computed(() => {
   if (!result.value?.risk_metrics) return []
@@ -223,12 +234,6 @@ const riskMetricsList = computed(() => {
   }))
 })
 
-onMounted(() => {
-  if (route.query.symbol) {
-    symbolInput.value = String(route.query.symbol)
-  }
-})
-
 async function handleAnalyze() {
   const input = symbolInput.value.trim()
   if (!input) {
@@ -238,12 +243,21 @@ async function handleAnalyze() {
 
   loading.value = true
   result.value = null
+  klineData.value = null
 
+  // 并行获取量化分析和K线数据
   try {
-    const response = await quantApi.analyze({ symbol: input })
-    result.value = response.data
+    const [analyzeRes, klineRes] = await Promise.all([
+      quantApi.analyze({ symbol: input }),
+      fetch(`/api/v1/quant/kline?symbol=${input}&period=day&count=120`).then(r => r.json()),
+    ])
+    result.value = analyzeRes.data
+    klineData.value = klineRes
     activeDim.value = 0
-    store.setAnalysisResult(response.data)
+    store.setAnalysisResult(analyzeRes.data)
+
+    await nextTick()
+    renderKlineChart()
   } catch (err: any) {
     console.error('[AnalyzeView] analyze error:', err.response?.status, err.response?.data)
     store.setError(err.response?.data?.detail || '分析失败，请检查股票代码')
@@ -251,6 +265,111 @@ async function handleAnalyze() {
     loading.value = false
   }
 }
+
+function renderKlineChart() {
+  if (!klineChartRef.value || !klineData.value?.klines?.length) return
+
+  if (klineChart) klineChart.dispose()
+  klineChart = echarts.init(klineChartRef.value)
+
+  const d = klineData.value
+  const dates = d.klines.map((k: any) => k[0])
+  const ohlc = d.klines.map((k: any) => [k[1], k[2], k[3], k[4]])
+  const vols = d.klines.map((k: any) => k[5])
+
+  // 计算vol颜色
+  const volColors = d.klines.map((k: any) => (k[2] >= k[1] ? '#ef4444' : '#22c55e'))
+
+  const option: EChartsOption = {
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: { type: 'cross' },
+    },
+    legend: {
+      data: ['K线', 'MA5', 'MA10', 'MA20', 'MA60', '成交量'],
+      textStyle: { fontSize: 18, color: 'var(--text-secondary)' },
+      top: 0,
+    },
+    grid: [
+      { left: '6%', right: '6%', top: '10%', height: '55%' },
+      { left: '6%', right: '6%', top: '73%', height: '20%' },
+    ],
+    xAxis: [
+      {
+        type: 'category', data: dates, gridIndex: 0,
+        axisLabel: { fontSize: 14, color: 'var(--text-secondary)', interval: Math.floor(dates.length / 10) },
+        axisLine: { lineStyle: { color: 'var(--border)' } },
+      },
+      {
+        type: 'category', data: dates, gridIndex: 1,
+        axisLabel: { show: false },
+        axisLine: { lineStyle: { color: 'var(--border)' } },
+      },
+    ],
+    yAxis: [
+      {
+        type: 'value', gridIndex: 0, scale: true,
+        splitLine: { lineStyle: { color: 'var(--border)', opacity: 0.3 } },
+        axisLabel: { fontSize: 14, color: 'var(--text-secondary)' },
+      },
+      {
+        type: 'value', gridIndex: 1,
+        splitLine: { show: false },
+        axisLabel: { fontSize: 12, color: 'var(--text-secondary)', formatter: (v: number) => v >= 10000 ? (v / 10000).toFixed(0) + '万' : String(v) },
+      },
+    ],
+    series: [
+      {
+        name: 'K线', type: 'candlestick', xAxisIndex: 0, yAxisIndex: 0,
+        itemStyle: { color: '#ef4444', color0: '#22c55e', borderColor: '#ef4444', borderColor0: '#22c55e' },
+        data: ohlc,
+      },
+      {
+        name: 'MA5', type: 'line', xAxisIndex: 0, yAxisIndex: 0,
+        symbol: 'none', lineStyle: { width: 1.5, color: '#f59e0b' },
+        data: d.ma5,
+      },
+      {
+        name: 'MA10', type: 'line', xAxisIndex: 0, yAxisIndex: 0,
+        symbol: 'none', lineStyle: { width: 1.5, color: '#3b82f6' },
+        data: d.ma10,
+      },
+      {
+        name: 'MA20', type: 'line', xAxisIndex: 0, yAxisIndex: 0,
+        symbol: 'none', lineStyle: { width: 1.5, color: '#8b5cf6' },
+        data: d.ma20,
+      },
+      {
+        name: 'MA60', type: 'line', xAxisIndex: 0, yAxisIndex: 0,
+        symbol: 'none', lineStyle: { width: 1.5, color: '#ec4899' },
+        data: d.ma60,
+      },
+      {
+        name: '成交量', type: 'bar', xAxisIndex: 1, yAxisIndex: 1,
+        itemStyle: { color: (p: any) => volColors[p.dataIndex] },
+        data: vols,
+      },
+    ],
+  }
+
+  klineChart.setOption(option)
+  klineChart.resize()
+}
+
+// 响应式调整
+function handleResize() {
+  if (klineChart) klineChart.resize()
+}
+onMounted(() => {
+  window.addEventListener('resize', handleResize)
+  if (route.query.symbol) {
+    symbolInput.value = String(route.query.symbol)
+  }
+})
+onUnmounted(() => {
+  window.removeEventListener('resize', handleResize)
+  if (klineChart) { klineChart.dispose(); klineChart = null }
+})
 
 function getScoreBadge(score: number): string {
   if (score >= 80) return 'badge-success'
