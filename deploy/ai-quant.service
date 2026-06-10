@@ -1,0 +1,18 @@
+[Unit]
+Description=AI智投量化平台 - FastAPI Backend
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+WorkingDirectory=/var/www/ai-quant
+Environment=PRODUCTION=true
+EnvironmentFile=/var/www/ai-quant/.env.production
+ExecStart=/usr/bin/python3 -m uvicorn main:app --host 0.0.0.0 --port 8000 --log-level info
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
