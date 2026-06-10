@@ -341,9 +341,10 @@ function loadStrategy() { window.location.href = '/strategies' }
 .step-item.active { color: var(--primary); border-bottom-color: var(--primary); }
 
 /* 股票池 */
-.pool-section { display: flex; align-items: center; gap: 12px; padding: 12px 20px; margin-bottom: 16px; flex-wrap: wrap; }
-.pool-label { font-size: 28px; font-weight: 500; white-space: nowrap; }
-.pool-controls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 26px; color: var(--text-secondary); }
+.pool-section { display: flex; flex-direction: column; gap: 8px; padding: 16px 20px; margin-bottom: 16px; }
+.pool-label { font-size: 28px; font-weight: 500; }
+.pool-controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 26px; color: var(--text-secondary); }
+.pool-controls .input { width: auto; padding: 8px 12px; font-size: 24px; min-height: 40px; }
 
 /* 左右两栏布局 */
 .screen-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
