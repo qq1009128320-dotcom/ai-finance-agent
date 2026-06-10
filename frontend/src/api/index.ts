@@ -31,7 +31,7 @@ export const aiApi = {
 
 // 策略管理 API
 export const strategyApi = {
-  create: (data: { name: string; code: string; description?: string; tags?: string[] }) =>
+  create: (data: { name: string; code: string; description?: string; tags?: string[]; config?: any }) =>
     api.post('/strategy/create', data),
   
   list: () => api.get('/strategy/list'),

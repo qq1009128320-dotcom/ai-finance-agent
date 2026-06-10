@@ -118,6 +118,7 @@ class StrategyCreateRequest(BaseModel):
     code: str
     description: Optional[str] = None
     tags: List[str] = Field(default_factory=list)
+    config: Optional[Dict[str, Any]] = None  # 策略配置（策略编辑器/AI策略通用）
 
 
 class StrategyResponse(BaseModel):
@@ -127,6 +128,7 @@ class StrategyResponse(BaseModel):
     code: str
     description: Optional[str]
     tags: List[str]
+    config: Optional[Dict[str, Any]] = None
     created_at: str
     updated_at: str
     version: int

@@ -176,26 +176,34 @@ function runBacktest(strategy: Strategy) {
 }
 
 async function runScreen(strategy: Strategy) {
-  // 解析策略配置：JSON 或 Python 代码
+  // 优先使用策略保存的 config
   let conditions: any[] = []
   let pool = 'all'
   let conditionLogic = 'AND'
 
-  try {
-    const config = JSON.parse(strategy.code)
-    if (config && typeof config === 'object') {
-      conditions = config.conditions || []
-      pool = config.pool || 'all'
-      conditionLogic = config.conditionLogic || 'AND'
+  // 方式1: 使用策略的 config 字段
+  if (strategy.config && strategy.config.conditions && strategy.config.conditions.length > 0) {
+    conditions = strategy.config.conditions
+    pool = strategy.config.pool || 'all'
+    conditionLogic = strategy.config.conditionLogic || 'AND'
+  } else {
+    // 方式2: 尝试将 code 作为 JSON 解析（策略编辑器保存的格式）
+    try {
+      const config = JSON.parse(strategy.code)
+      if (config && typeof config === 'object' && config.conditions) {
+        conditions = config.conditions || []
+        pool = config.pool || 'all'
+        conditionLogic = config.conditionLogic || 'AND'
+      }
+    } catch {
+      // 方式3: Python 代码策略且没有 config — 无法提取条件
+      store.setError('该策略为AI生成的代码策略，未包含选股条件。请在AI策略页面重新生成并保存策略，或在策略编辑器中手动配置')
+      return
     }
-  } catch {
-    // Python 代码策略 — 无法提取条件，提示用户
-    store.setError('该策略为AI生成的代码策略，暂不支持从代码中提取选股条件，请使用策略编辑器手动配置')
-    return
   }
 
   if (conditions.length === 0) {
-    store.setError('该策略没有设置选股条件，请在策略编辑器中添加筛选条件')
+    store.setError('该策略没有设置选股条件，请在AI策略页面重新生成时包含市盈率/市净率等选股条件，或在策略编辑器中手动添加')
     return
   }
 

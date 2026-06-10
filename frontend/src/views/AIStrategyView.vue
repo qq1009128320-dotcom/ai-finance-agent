@@ -272,17 +272,62 @@ async function handleSave() {
     return
   }
 
+  // 从提示词中提取筛选条件作为 config
+  const config = extractConditionsFromPrompt(prompt.value)
+
   try {
     await strategyApi.create({
       name: strategyName.value,
       code: generatedCode.value,
-      tags: [style.value]
+      description: prompt.value,
+      tags: [style.value],
+      config: config.conditions.length > 0 ? config : undefined,
     })
     store.setError(null)
     alert('✅ 策略已保存')
   } catch (err: any) {
     store.setError(err.response?.data?.detail || '保存失败')
   }
+}
+
+// 从策略描述中提取选股条件
+function extractConditionsFromPrompt(prompt: string): { pool: string; conditions: any[]; conditionLogic: string } {
+  const result: { pool: string; conditions: any[]; conditionLogic: string } = {
+    pool: 'all',
+    conditions: [],
+    conditionLogic: 'AND',
+  }
+  const p = prompt.replace(/\s/g, '')
+
+  // PE条件
+  const peMatch = p.match(/PE(低于|小于|<=|<|=)(\d+(\.\d+)?)/)
+  if (peMatch) result.conditions.push({ indicator: 'pe_ttm', operator: '<', range: 'day', value: peMatch[2] })
+
+  // PB条件
+  const pbMatch = p.match(/PB(低于|小于|<=|<|=)(\d+(\.\d+)?)/)
+  if (pbMatch) result.conditions.push({ indicator: 'pb', operator: '<', range: 'day', value: pbMatch[2] })
+
+  // ROE条件
+  const roeMatch = p.match(/ROE(高于|大于|>=|>|=)(\d+(\.\d+)?)/)
+  if (roeMatch) result.conditions.push({ indicator: 'roe', operator: '>', range: 'day', value: roeMatch[2] })
+
+  // 换手率条件
+  const trMatch = p.match(/换手率(高于|大于|>=|>)(\d+(\.\d+)?)/)
+  if (trMatch) result.conditions.push({ indicator: 'turnover_rate', operator: '>', range: 'day', value: trMatch[2] })
+
+  // 市盈率条件
+  const peCn = p.match(/市盈率(低于|小于|<=|<)(\d+(\.\d+)?)/)
+  if (peCn) result.conditions.push({ indicator: 'pe_ttm', operator: '<', range: 'day', value: peCn[2] })
+
+  // 市净率条件
+  const pbCn = p.match(/市净率(低于|小于|<=|<)(\d+(\.\d+)?)/)
+  if (pbCn) result.conditions.push({ indicator: 'pb', operator: '<', range: 'day', value: pbCn[2] })
+
+  // 市值条件
+  const capMatch = p.match(/市值(高于|大于|>=|>|=)(\d+(\.\d+)?)/)
+  if (capMatch) result.conditions.push({ indicator: 'market_cap', operator: '>', range: 'day', value: capMatch[2] })
+
+  return result
 }
 
 async function handleBacktest() {
