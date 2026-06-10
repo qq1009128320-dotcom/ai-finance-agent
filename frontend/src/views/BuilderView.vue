@@ -25,8 +25,8 @@
       <div class="pool-section card">
         <span class="pool-label">我的股票池：</span>
         <div class="pool-controls">
-          <span>股票上限(只)：</span><input v-model.number="config.poolLimit" type="number" class="input" style="width:70px;" />
-          <span>调仓周期(日)：</span><input v-model.number="config.rebalanceDays" type="number" class="input" style="width:70px;" />
+          <span>股票上限(只)：</span><input v-model.number="config.poolLimit" type="number" class="input" style="width:100px;" />
+          <span>调仓周期(日)：</span><input v-model.number="config.rebalanceDays" type="number" class="input" style="width:100px;" />
           <select v-model="config.pool" class="input" style="width:200px;">
             <option value="all">全A股</option>
             <option value="hs300">沪深300</option>
