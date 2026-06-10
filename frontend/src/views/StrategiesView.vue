@@ -196,15 +196,14 @@ async function runScreen(strategy: Strategy) {
         conditionLogic = config.conditionLogic || 'AND'
       }
     } catch {
-      // 方式3: Python 代码策略且没有 config — 无法提取条件
-      store.setError('该策略为AI生成的代码策略，未包含选股条件。请在AI策略页面重新生成并保存策略，或在策略编辑器中手动配置')
-      return
+      // Python 代码策略 — 无 config 时用默认股票池
+      conditions = [{ indicator: 'volume_ratio', operator: '>', range: 'day', value: '0' }]
     }
   }
 
   if (conditions.length === 0) {
-    store.setError('该策略没有设置选股条件，请在AI策略页面重新生成时包含市盈率/市净率等选股条件，或在策略编辑器中手动添加')
-    return
+    // 没有选股条件时，直接显示默认股票池
+    conditions = [{ indicator: 'volume_ratio', operator: '>', range: 'day', value: '0' }]
   }
 
   try {

@@ -299,33 +299,37 @@ function extractConditionsFromPrompt(prompt: string): { pool: string; conditions
   }
   const p = prompt.replace(/\s/g, '')
 
-  // PE条件
+  // === 估值条件 ===
   const peMatch = p.match(/PE(低于|小于|<=|<|=)(\d+(\.\d+)?)/)
   if (peMatch) result.conditions.push({ indicator: 'pe_ttm', operator: '<', range: 'day', value: peMatch[2] })
-
-  // PB条件
+  const peCn = p.match(/市盈率(低于|小于|<=|<)(\d+(\.\d+)?)/)
+  if (peCn) result.conditions.push({ indicator: 'pe_ttm', operator: '<', range: 'day', value: peCn[2] })
   const pbMatch = p.match(/PB(低于|小于|<=|<|=)(\d+(\.\d+)?)/)
   if (pbMatch) result.conditions.push({ indicator: 'pb', operator: '<', range: 'day', value: pbMatch[2] })
+  const pbCn = p.match(/市净率(低于|小于|<=|<)(\d+(\.\d+)?)/)
+  if (pbCn) result.conditions.push({ indicator: 'pb', operator: '<', range: 'day', value: pbCn[2] })
+  const capMatch = p.match(/市值(高于|大于|>=|>|=)(\d+(\.\d+)?)/)
+  if (capMatch) result.conditions.push({ indicator: 'market_cap', operator: '>', range: 'day', value: capMatch[2] })
+  const capLt = p.match(/市值(低于|小于|<)(\d+(\.\d+)?)/)
+  if (capLt) result.conditions.push({ indicator: 'market_cap', operator: '<', range: 'day', value: capLt[2] })
 
-  // ROE条件
+  // === 盈利条件 ===
   const roeMatch = p.match(/ROE(高于|大于|>=|>|=)(\d+(\.\d+)?)/)
   if (roeMatch) result.conditions.push({ indicator: 'roe', operator: '>', range: 'day', value: roeMatch[2] })
 
-  // 换手率条件
+  // === 成交量/量比条件 ===
+  const volMatch = p.match(/成交量.*?(\d+(\.\d+)?)倍/)
+  if (volMatch) result.conditions.push({ indicator: 'volume_ratio', operator: '>', range: 'day', value: volMatch[1] })
+  const volGt = p.match(/量比(高于|大于|>=|>)(\d+(\.\d+)?)/)
+  if (volGt) result.conditions.push({ indicator: 'volume_ratio', operator: '>', range: 'day', value: volGt[2] })
+  const volFd = p.match(/放量.*?(\d+(\.\d+)?)倍/)
+  if (volFd) result.conditions.push({ indicator: 'volume_ratio', operator: '>', range: 'day', value: volFd[1] })
+  const volUp = p.match(/成交量(放大|放量|增加|大于)/)
+  if (volUp && !volMatch) result.conditions.push({ indicator: 'volume_ratio', operator: '>', range: 'day', value: '1.5' })
+
+  // === 换手率条件 ===
   const trMatch = p.match(/换手率(高于|大于|>=|>)(\d+(\.\d+)?)/)
   if (trMatch) result.conditions.push({ indicator: 'turnover_rate', operator: '>', range: 'day', value: trMatch[2] })
-
-  // 市盈率条件
-  const peCn = p.match(/市盈率(低于|小于|<=|<)(\d+(\.\d+)?)/)
-  if (peCn) result.conditions.push({ indicator: 'pe_ttm', operator: '<', range: 'day', value: peCn[2] })
-
-  // 市净率条件
-  const pbCn = p.match(/市净率(低于|小于|<=|<)(\d+(\.\d+)?)/)
-  if (pbCn) result.conditions.push({ indicator: 'pb', operator: '<', range: 'day', value: pbCn[2] })
-
-  // 市值条件
-  const capMatch = p.match(/市值(高于|大于|>=|>|=)(\d+(\.\d+)?)/)
-  if (capMatch) result.conditions.push({ indicator: 'market_cap', operator: '>', range: 'day', value: capMatch[2] })
 
   return result
 }
