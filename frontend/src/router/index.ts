@@ -36,6 +36,11 @@ const router = createRouter({
       path: '/strategies',
       name: 'Strategies',
       component: () => import('@/views/StrategiesView.vue')
+    },
+    {
+      path: '/strategies/screen',
+      name: 'ScreenResult',
+      component: () => import('@/views/ScreenResultView.vue')
     }
   ]
 })

@@ -65,6 +65,13 @@ export const useAppStore = defineStore('app', () => {
   const isLoading = ref(false)
   const error = ref<string | null>(null)
 
+  // 选股结果页数据
+  const screenStrategyName = ref('')
+  const screenConditions = ref<any[]>([])
+  const screenPool = ref('all')
+  const screenLogic = ref('AND')
+  const screenResult = ref<{ total: number; stocks: any[] } | null>(null)
+
   // Actions
   function setSymbol(symbol: string) {
     currentSymbol.value = symbol
@@ -106,23 +113,24 @@ export const useAppStore = defineStore('app', () => {
     error.value = null
   }
 
+  function setScreenParams(name: string, conditions: any[], pool: string, logic: string) {
+    screenStrategyName.value = name
+    screenConditions.value = conditions
+    screenPool.value = pool
+    screenLogic.value = logic
+    screenResult.value = null
+  }
+
+  function setScreenResult(result: { total: number; stocks: any[] }) {
+    screenResult.value = result
+  }
+
   return {
-    currentSymbol,
-    analysisResult,
-    strategies,
-    backtestResult,
-    generatedCode,
-    isLoading,
-    error,
-    setSymbol,
-    setAnalysisResult,
-    setStrategies,
-    addStrategy,
-    removeStrategy,
-    setBacktestResult,
-    setGeneratedCode,
-    setLoading,
-    setError,
-    clearError
+    currentSymbol, analysisResult, strategies, backtestResult,
+    generatedCode, isLoading, error,
+    screenStrategyName, screenConditions, screenPool, screenLogic, screenResult,
+    setSymbol, setAnalysisResult, setStrategies, addStrategy, removeStrategy,
+    setBacktestResult, setGeneratedCode, setLoading, setError, clearError,
+    setScreenParams, setScreenResult,
   }
 })

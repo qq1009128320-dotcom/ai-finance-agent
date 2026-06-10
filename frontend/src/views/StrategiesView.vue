@@ -76,27 +76,6 @@
             🗑️ 删除
           </button>
         </div>
-
-        <!-- 选股结果 -->
-        <div v-if="screenResults[strategy.id]" class="screen-results" style="margin-top: var(--space-md);">
-          <p style="font-size: 24px; color: var(--text-muted); margin-bottom: 8px;">
-            ✅ 选股完成 — 共 <strong style="color: var(--text-primary);">{{ screenResults[strategy.id].total }}</strong> 只股票满足条件
-          </p>
-          <div class="screen-table">
-            <div class="picks-header">
-              <span class="picks-col-code">代码</span>
-              <span class="picks-col-name">名称</span>
-              <span class="picks-col-price">现价</span>
-              <span class="picks-col-change">涨跌幅</span>
-            </div>
-            <div v-for="s in screenResults[strategy.id].stocks" :key="s.symbol" class="picks-row">
-              <span class="picks-col-code">{{ s.symbol }}</span>
-              <span class="picks-col-name">{{ s.name }}</span>
-              <span class="picks-col-price">{{ s.price?.toFixed(2) }}</span>
-              <span class="picks-col-change" :class="s.change_pct >= 0 ? 'text-up' : 'text-down'">{{ s.change_pct >= 0 ? '+' : '' }}{{ s.change_pct?.toFixed(2) }}%</span>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   </div>
@@ -116,7 +95,6 @@ const loading = ref(false)
 const searchQuery = ref('')
 const filterTag = ref('')
 const strategies = ref<Strategy[]>([])
-const screenResults = ref<Record<string, { total: number; stocks: any[] }>>({})
 
 onMounted(() => {
   refreshStrategies()
@@ -202,23 +180,12 @@ async function runScreen(strategy: Strategy) {
   }
 
   if (conditions.length === 0) {
-    // 没有选股条件时，直接显示默认股票池
     conditions = [{ indicator: 'volume_ratio', operator: '>', range: 'day', value: '0' }]
   }
 
-  try {
-    const r = await (await fetch('/api/v1/builder/screen', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pool, conditions, condition_logic: conditionLogic, limit: 50 }),
-    })).json()
-    screenResults.value = { ...screenResults.value, [strategy.id]: r }
-    if (r.total === 0) {
-      store.setError('没有股票满足当前条件，请放宽筛选条件')
-    }
-  } catch {
-    store.setError('选股失败，接口不可用')
-  }
+  // 跳转到选股结果页
+  store.setScreenParams(strategy.name, conditions, pool, conditionLogic)
+  router.push('/strategies/screen')
 }
 
 function editStrategy(strategy: Strategy) {
@@ -279,17 +246,4 @@ async function deleteStrategy(id: string) {
     grid-template-columns: 1fr;
   }
 }
-
-/* 选股结果表格 */
-.screen-table { width: 100%; border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; }
-.picks-header { display: flex; padding: 10px 12px; border-bottom: 2px solid var(--border); font-size: 22px; color: var(--text-muted); font-weight: 500; background: var(--bg-main); }
-.picks-row { display: flex; align-items: center; padding: 10px 12px; border-bottom: 1px solid rgba(0,0,0,0.04); font-size: 24px; }
-.picks-row:last-child { border-bottom: none; }
-.picks-row:hover { background: var(--bg-card-hover); }
-.picks-col-code { flex: 1.2; font-family: monospace; }
-.picks-col-name { flex: 2; }
-.picks-col-price { flex: 1; text-align: right; }
-.picks-col-change { flex: 1; text-align: right; font-weight: 600; }
-.text-up { color: var(--up); }
-.text-down { color: var(--down); }
 </style>
