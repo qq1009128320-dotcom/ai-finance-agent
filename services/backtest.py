@@ -187,7 +187,6 @@ class BacktestService:
                 'True': True, 'False': False, 'None': None,
                 'isinstance': isinstance, 'hasattr': hasattr, 'getattr': getattr,
                 'setattr': setattr, 'abs': abs, 'map': map, 'filter': filter,
-                '__import__': __import__,  # 保留但通过下方 get_kline/buy/sell 限制
             }
             global_vars = {
                 "__builtins__": _safe_builtins,
@@ -196,7 +195,7 @@ class BacktestService:
                 "pd": pd,
                 "get_kline": lambda s, **kw: df if s == symbol else None,
                 "context": context,
-                "buy": lambda s, p, r: trades.append({"day": len(trades), "type": "buy", "symbol": s, "price": p, "reason": r}) or context.portfolio.positions.update({s: {"cost_price": p, "qty": 1}}) or context.portfolio.__setattr__("cash", context.portfolio.cash - p),
+                "buy": lambda s, p, r: None if s in context.portfolio.positions else (None if len(context._trade_dates) >= context.max_trades_per_day else (None if context.portfolio.cash < p * 100 else (lambda: (context.portfolio.positions.update({s: {"cost_price": p, "qty": 1}}), context.portfolio.__setattr__("cash", context.portfolio.cash - p), context._trade_dates.append(s), trades.append({"day": len(trades), "type": "buy", "symbol": s, "price": p, "reason": r}))()))),
                 "sell": lambda s, p, r: trades.append({"day": len(trades), "type": "sell", "symbol": s, "price": p, "reason": r}) or context.portfolio.positions.pop(s, None) or context.portfolio.__setattr__("cash", context.portfolio.cash + p),
             }
             exec(resolved_code, global_vars, local_vars)

@@ -1,5 +1,6 @@
 """
 AI智投量化平台 v4 - API v1: Backtest Endpoints
+免责声明：本平台仅供学习研究，不构成任何投资建议。
 """
 
 from fastapi import APIRouter, HTTPException
@@ -12,16 +13,13 @@ router = APIRouter()
 @router.post("/run", response_model=BacktestResponse)
 async def run_backtest(request: BacktestRequest):
     """
-    运行策略回测
-    
-    - **code**: 策略代码（必须包含init和handle_data函数）
-    - **symbol**: 回测标的（如 600036）
-    - **start_date**: 开始日期（可选）
-    - **end_date**: 结束日期（可选）
-    - **initial_capital**: 初始资金（默认100000）
-    
-    返回回测结果，包括收益率、交易记录等。
+    运行策略回测（需要用户确认风险声明）
+
+    先检查用户是否已确认风险声明，再执行回测。
+    required parameter: confirmed=True
     """
+    if not request.confirmed:
+        raise HTTPException(status_code=400, detail="请先确认已阅读风险提示：回测结果不代表实盘表现，投资有风险。")
     try:
         return backtest_service.run_backtest(request)
     except Exception as e:
@@ -34,19 +32,19 @@ async def run_backtest(request: BacktestRequest):
 async def validate_and_run_backtest(request: BacktestRequest):
     """
     验证并运行回测（需要用户确认风险声明）
-    
+
     先验证策略代码，确认用户已阅读风险提示，再执行回测。
     required parameter: confirmed=True
     """
-    if not getattr(request, 'confirmed', False):
+    if not request.confirmed:
         raise HTTPException(status_code=400, detail="请先确认已阅读风险提示：回测结果不代表实盘表现，投资有风险。")
     from services.strategy import strategy_service
-    
+
     # 验证
     is_valid, msg = strategy_service.validate_code(request.code)
     if not is_valid:
         raise HTTPException(status_code=400, detail=f"策略代码无效: {msg}")
-    
+
     # 运行回测
     try:
         return backtest_service.run_backtest(request)

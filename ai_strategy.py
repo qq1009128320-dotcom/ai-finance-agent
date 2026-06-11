@@ -367,7 +367,6 @@ def run_backtest(strategy_code: str, symbol: str, start_date: str = None, end_da
         'True': True, 'False': False, 'None': None,
         'isinstance': isinstance, 'hasattr': hasattr, 'getattr': getattr,
         'setattr': setattr, 'abs': abs, 'map': map, 'filter': filter,
-        'open': open,  # 仅允许文件读取
     }
     
     # Execute init
@@ -413,20 +412,9 @@ def run_backtest(strategy_code: str, symbol: str, start_date: str = None, end_da
             
             try:
                 if "handle_data" in local_vars:
-                    # Create a simplified environment
-                    exec_env = {
-                        "__builtins__": __builtins__,
-                        "np": np,
-                        "pd": pd,
-                        "get_kline": lambda s, p, c: df.reset_index().values.tolist() if s == symbol else None,
-                        "context": context,
-                        "buy": lambda s, p, r: trades.append({"day": i, "type": "buy", "symbol": s, "price": p, "reason": r}),
-                        "sell": lambda s, p, r: trades.append({"day": i, "type": "sell", "symbol": s, "price": p, "reason": r}),
-                        "data": data,
-                    }
                     local_vars["handle_data"](context, data)
             except Exception as e:
-                pass
+                print(f"[ai_strategy] handle_data error: {e}")
         
         # Calculate metrics
         total_trades = len(trades)
