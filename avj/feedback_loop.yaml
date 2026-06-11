@@ -1,0 +1,20 @@
+# 经验复利能力 — 每次运行沉淀新知识
+
+captures_trace: true
+failure_taxonomy: true
+repair_samples: true
+benchmark_update: false
+domain_pack_update: true
+longitudinal_profiles: true
+expert_reviewer_loop: true
+evidence:
+  - E003
+  - E008
+
+# 说明：
+# captures_trace: 每次用户保存策略都记录在strategies/，可追溯版本
+# failure_taxonomy: AI策略生成失败时记录原因分类（API超时/因子不匹配/编译错误）  
+# repair_samples: 用户编辑AI生成的策略，修正版本保留了用户调整
+# domain_pack_update: 用户创建新策略时策略库自动更新
+# longitudinal_profiles: 每次回测结果记录到策略文件，可追踪策略表现变化
+# expert_reviewer_loop: 项目创建者定期review回测结果

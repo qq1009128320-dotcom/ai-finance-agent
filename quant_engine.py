@@ -1116,6 +1116,117 @@ class FactorCalculator:
         )
 
     # ═══════════════════════════════════════════
+    # 资金博弈类 — A股特有因子（稀缺性高）
+    # ═══════════════════════════════════════════
+
+    def capital_north_flow(self) -> FactorScore:
+        """因子25: 北向资金强度 — A股特有，外资流向"""
+        if self.n < 20:
+            return self._neutral_factor("北向资金强度", 0.04, "数据不足（需20日以上）")
+
+        # 用成交量变化模拟北向资金活跃度（真实北向数据需额外API）
+        # 这里用"放量上涨"+"大盘股"特征做近似评估
+        vol_ratio = self.volume[-1] / (self._sma(self.volume, 5)[-1] + 1e-10)
+        price_up = self.close[-1] > self.close[-5]
+        strength = vol_ratio * (1.0 if price_up else -0.5)
+
+        if strength > 1.5:
+            score, signal = 85, "bullish"
+            detail = f"北向活跃度{strength:.1f}，放量上行，疑似外资加仓"
+        elif strength > 0.8:
+            score, signal = 65, "bullish"
+            detail = f"北向活跃度{strength:.1f}，温和放量，外资偏多"
+        elif strength > -0.5:
+            score, signal = 45, "neutral"
+            detail = f"北向活跃度{strength:.1f}，外资方向不明"
+        else:
+            score, signal = 25, "bearish"
+            detail = f"北向活跃度{strength:.1f}，缩量下跌，外资流出迹象"
+
+        return FactorScore(
+            name="北向资金强度", value=round(strength, 2),
+            score=score, signal=signal, weight=0.04,
+            contribution=score * 0.04, detail=detail
+        )
+
+    def capital_hot_money(self) -> FactorScore:
+        """因子26: 游资活跃度 — A股特有，龙虎榜/短线资金特征"""
+        if self.n < 10:
+            return self._neutral_factor("游资活跃度", 0.04, "数据不足（需10日以上）")
+
+        # 游资特征：高换手+大振幅+涨停倾向
+        turnover = self.volume[-5:] / (self._sma(self.volume, 20)[-5:] + 1e-10)
+        avg_turnover = float(np.mean(turnover))
+
+        high_low = (self.high[-5:] - self.low[-5:]) / (self.low[-5:] + 1e-10)
+        avg_amplitude = float(np.mean(high_low)) * 100
+
+        # 近5日有涨停（涨幅>9.5%）？
+        has_limit_up = any(
+            (self.close[i] - self.close[i-1]) / self.close[i-1] > 0.095
+            for i in range(max(1, self.n-5), self.n)
+        )
+
+        score = min(30 + avg_turnover * 15 + avg_amplitude * 3 + (20 if has_limit_up else 0), 95)
+        score = int(score)
+
+        if score >= 75:
+            signal = "bullish"
+            detail = f"游资活跃: 换手率{avg_turnover:.1f}x, 振幅{avg_amplitude:.1f}%"
+            if has_limit_up:
+                detail += ", 近5日涨停"
+        elif score >= 45:
+            signal = "neutral"
+            detail = f"游资一般: 换手率{avg_turnover:.1f}x, 振幅{avg_amplitude:.1f}%"
+        else:
+            signal = "bearish"
+            detail = f"游资冷淡: 换手率{avg_turnover:.1f}x, 振幅{avg_amplitude:.1f}%"
+
+        return FactorScore(
+            name="游资活跃度", value=round(avg_turnover, 2),
+            score=score, signal=signal, weight=0.04,
+            contribution=score * 0.04, detail=detail
+        )
+
+    def capital_limit_up_quality(self) -> FactorScore:
+        """因子27: 涨停封板质量 — A股特有，封单强度"""
+        if self.n < 20:
+            return self._neutral_factor("涨停封板质量", 0.03, "数据不足（需20日以上）")
+
+        # 用高开+放量+价格强度综合评估封板意愿
+        gap_up = (self.open[-1] - self.close[-2]) / (self.close[-2] + 1e-10)
+        intraday_strength = (self.close[-1] - self.low[-1]) / (self.high[-1] - self.low[-1] + 1e-10)
+        vol_surge = self.volume[-1] / (self._sma(self.volume, 20)[-1] + 1e-10)
+
+        quality = 50
+        if gap_up > 0.02:
+            quality += 15
+        if intraday_strength > 0.7:
+            quality += 15
+        if vol_surge > 2:
+            quality += 10
+        if gap_up > 0.05 and intraday_strength > 0.8:
+            quality += 10  # 高开高走=强势封板
+
+        quality = min(quality, 95)
+
+        if quality >= 70:
+            signal = "bullish"
+            detail = f"封板质量{quality}分，高开{abs(gap_up)*100:.1f}%，盘口强势"
+        elif quality >= 45:
+            signal = "neutral"
+            detail = f"封板质量{quality}分，日内走势一般"
+        else:
+            signal = "bearish"
+            detail = f"封板质量{quality}分，高开低走或冲高回落"
+
+        return FactorScore(
+            name="涨停封板质量", value=round(quality, 0),
+            score=quality, signal=signal, weight=0.03,
+            contribution=quality * 0.03, detail=detail
+        )
+
+    # ═══════════════════════════════════════════
     # 形态识别类 (4个)
     # ═══════════════════════════════════════════
 
@@ -1367,6 +1478,9 @@ class FactorCalculator:
         factors.append(self.volume_cmf())
         factors.append(self.volume_trend())
         factors.append(self.volume_vpt())
+        factors.append(self.capital_north_flow())
+        factors.append(self.capital_hot_money())
+        factors.append(self.capital_limit_up_quality())
 
         # 形态类 (4)
         factors.append(self.pattern_candlestick())

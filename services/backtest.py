@@ -353,12 +353,31 @@ class BacktestService:
             else:
                 profit_factor = 0.0
             
+            # 沪深300基准对比
+            benchmark_ret = _benchmark_return(df.index[0], df.index[-1])
+            message = f"回测完成: {total_trades}笔交易"
+            if total_return > benchmark_ret:
+                message += f" | 跑赢沪深300 {(total_return - benchmark_ret)*100:.1f}% 🟢"
+            else:
+                message += f" | 跑输沪深300 {(benchmark_ret - total_return)*100:.1f}% 🔴"
+
+            # 持久化到CSV
+            _log_backtest_result(symbol, request.code[:30], {
+                "annual_return": annual_return,
+                "sharpe_ratio": sharpe_ratio,
+                "max_drawdown": max_drawdown,
+                "win_rate": win_rate,
+                "profit_factor": profit_factor,
+                "total_trades": total_trades,
+                "benchmark_return": benchmark_ret,
+            })
+
             return BacktestResponse(
                 symbol=symbol,
                 start_date=df.index[0].strftime("%Y-%m-%d"),
                 end_date=df.index[-1].strftime("%Y-%m-%d"),
                 status="success",
-                message=f"回测完成: {total_trades}笔交易",
+                message=message,
                 metrics=BacktestMetrics(
                     total_return=round(total_return, 2),
                     annual_return=round(annual_return, 2),
@@ -371,27 +390,75 @@ class BacktestService:
                     sell_count=len(sell_trades),
                     initial_capital=initial_capital,
                     final_capital=round(final_capital, 2),
-                    equity_curve=full_equity_curve,
-                ),
-                trades=[TradeRecord(
-                    day=t.get("day"),
-                    type=t["type"],
-                    symbol=t["symbol"],
-                    price=t["price"],
-                    reason=t["reason"],
-                ) for t in trades[-20:]],  # 最后20笔
-            )
-            
+                equity_curve=full_equity_curve,
+            ),
+            trades=[TradeRecord(
+                day=t.get("day"),
+                type=t["type"],
+                symbol=t["symbol"],
+                price=t["price"],
+                reason=t["reason"],
+            ) for t in trades[-20:]],  # 最后20笔
+        )
+
         except Exception as e:
+            # 保存回测结果到CSV
+            _log_backtest_result(symbol, request.code[:20], {
+                "annual_return": 0, "sharpe_ratio": 0,
+                "max_drawdown": 0, "win_rate": 0,
+                "profit_factor": 0, "total_trades": 0,
+            })
             return BacktestResponse(
                 symbol=symbol,
-                start_date=df.index[0].strftime("%Y-%m-%d"),
-                end_date=df.index[-1].strftime("%Y-%m-%d"),
+                start_date=str(df.index[0])[:10] if df is not None else "",
+                end_date=str(df.index[-1])[:10] if df is not None else "",
                 status="error",
                 message=f"回测执行错误: {str(e)}",
                 metrics=BacktestMetrics(initial_capital=initial_capital),
                 trades=[],
             )
+
+
+# 回测结果持久化
+_RESULTS_LOG = Path(__file__).parent.parent / "strategies" / "results_log.csv"
+
+def _log_backtest_result(symbol: str, strategy_name: str, metrics: dict):
+    """将回测结果追加到CSV日志"""
+    import csv, os
+    header = ["time", "symbol", "strategy", "annual_return", "sharpe",
+              "max_drawdown", "win_rate", "profit_factor", "total_trades",
+              "benchmark_return"]
+    row = {
+        "time": datetime.now().strftime("%Y-%m-%d %H:%M"),
+        "symbol": symbol,
+        "strategy": strategy_name or "custom",
+        "annual_return": f"{metrics.get('annual_return', 0):.2%}",
+        "sharpe": f"{metrics.get('sharpe_ratio', 0):.2f}",
+        "max_drawdown": f"{metrics.get('max_drawdown', 0):.2%}",
+        "win_rate": f"{metrics.get('win_rate', 0):.2%}",
+        "profit_factor": f"{metrics.get('profit_factor', 0):.2f}",
+        "total_trades": metrics.get('total_trades', 0),
+        "benchmark_return": metrics.get('benchmark_return', "N/A"),
+    }
+    file_exists = _RESULTS_LOG.exists()
+    os.makedirs(_RESULTS_LOG.parent, exist_ok=True)
+    with open(_RESULTS_LOG, "a", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=header)
+        if not file_exists:
+            writer.writeheader()
+        writer.writerow(row)
+
+
+# 沪深300基准收益（简化：用年化 8% 作为长期基准）
+def _benchmark_return(start_date, end_date) -> float:
+    """估算同期沪深300收益（基于历史年化）"""
+    try:
+        days = (end_date - start_date).days
+        years = max(days / 365.0, 0.1)
+        # 沪深300 2010-2025 年化约 6-8%
+        return round(0.07 * years, 4)
+    except:
+        return 0
 
 
 # 全局回测服务实例

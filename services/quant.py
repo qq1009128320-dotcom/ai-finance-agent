@@ -254,21 +254,45 @@ class QuantService:
                 quote = data_service.get_quote(symbol)
                 if "error" not in quote:
                     change = float(quote.get("change_pct", 0))
-                    # 增强评分：结合涨跌幅和成交量
                     volume = float(quote.get("volume", 0))
                     price = float(quote.get("price", 0))
-                    
-                    # 基础评分：涨跌幅映射
-                    score = 50 + change * 2
-                    
-                    # 成交量加成（放量上涨加分，放量下跌减分）
+                    turnover = float(quote.get("turnover", 0))
+                    amplitude = float(quote.get("amplitude", 0))
+                    amount = float(quote.get("amount", 0))
+
+                    # 多维评分（近似28因子中的关键维度）
+                    score = 50.0
+
+                    # ① 涨跌幅因子（趋势维度）
+                    score += change * 1.5
+
+                    # ② 量价关系（资金维度）
                     if volume > 0 and price > 0:
-                        if change > 0:
-                            score += min(10, volume / 1000000)  # 每百万手加最多10分
-                        else:
-                            score -= min(5, volume / 2000000)
-                    
-                    score = max(0, min(100, score))  # 限制在0-100
+                        vol_ratio = volume / 1e6  # 百万手为单位
+                        if change > 2:
+                            score += min(10, vol_ratio)   # 放量上涨加分
+                        elif change < -2:
+                            score -= min(8, vol_ratio)   # 放量下跌减分
+
+                    # ③ 换手率加权（活跃度维度）
+                    if turnover > 0:
+                        if turnover > 5:  # 高换手
+                            score += 3 if change > 0 else -3
+                        elif turnover > 2:
+                            score += 1
+
+                    # ④ 振幅信号（波动维度）
+                    if amplitude > 0:
+                        if amplitude > 8:  # 大幅波动
+                            score += 2 if change > 0 else -2
+                        elif amplitude > 4:
+                            score += 1
+
+                    # ⑤ 成交额强度
+                    if amount > 1e8:  # 过亿成交
+                        score += 2 if change > 0 else -1
+
+                    score = max(0, min(100, score))
                     
                     snapshot = StockSnapshot(
                         symbol=symbol,

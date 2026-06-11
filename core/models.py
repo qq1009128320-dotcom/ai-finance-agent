@@ -196,9 +196,10 @@ class BacktestMetrics(BaseModel):
     total_trades: Optional[int] = None
     buy_count: Optional[int] = None
     sell_count: Optional[int] = None
-    initial_capital: float
+    initial_capital: float = 100000.0
     final_capital: Optional[float] = None
-    equity_curve: Optional[List[EquityPoint]] = None
+    equity_curve: List[EquityPoint] = []
+    benchmark_return: Optional[float] = None
 
 
 class TradeRecord(BaseModel):

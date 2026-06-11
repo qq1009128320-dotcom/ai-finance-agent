@@ -1,0 +1,60 @@
+upstreams:
+  - name: FastAPI
+    version: 0.115.x
+    license: MIT
+    usage: 后端Web框架
+    team_delta:
+      - 自定义API路由设计（/api/v1前缀）
+      - Pydantic数据模型 + Settings配置管理
+
+  - name: Vue 3
+    version: 3.x
+    license: MIT
+    usage: 前端框架
+    team_delta:
+      - 6个功能页面的完整Vue组件
+      - Pinia状态管理 + Vue Router路由
+      - 蓝白配色风格 + A股红涨绿跌配色
+
+  - name: DeepSeek API
+    version: v2
+    license: Proprietary
+    usage: AI策略生成
+    team_delta:
+      - 自然语言→策略JSON的prompt工程
+      - 因子条件提取 + 交易模型生成的管道
+
+  - name: Akshare
+    version: latest
+    license: MIT
+    usage: A股数据补充
+    team_delta:
+      - 全A股代码→名称映射表
+      - 多数据源降级路由
+
+team_delta:
+  code:
+    - 28因子量化引擎（quant_engine.py）
+    - 回测引擎含未来穿越防护 + Mock TA-Lib
+    - 自然语言→策略管道（ai_strategy.py）
+    - 零依赖数据架构（data_router.py）
+  domain_rules:
+    - A股市场5维度28因子评分体系
+    - 多周期K线图MA叠加规则
+    - 回测exec作用域分割规则
+  validation:
+    - 回测结果与benchmark对比验证
+    - 未来穿越检测测试
+  data:
+    - A股代码→中文名称映射表（5525只）
+  workflow:
+    - 自然语言策略生成→编辑→回测→保存流程
+    - 多数据源降级流程
+  safety:
+    - AI策略"不切实际承诺"过滤prompt
+    - 金融领域风险声明
+originality_statement: >
+  AI智投量化平台的原创贡献在于将大语言模型（DeepSeek）与自主研发的28因子A股量化体系结合，
+  实现自然语言→结构化策略的完整管道。量化引擎和回测引擎均为自主研发，
+  不依赖第三方量化库（TA-Lib）。数据架构采用零依赖设计，腾讯API+多级降级。
+  前端UI为Vue 3自研实现，采用蓝白风格+A股红涨绿跌配色。

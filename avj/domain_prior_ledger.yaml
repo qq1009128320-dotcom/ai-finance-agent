@@ -1,0 +1,112 @@
+priors:
+  - id: P001
+    statement: A股市场分析需要5维度28因子体系（趋势/动量/波动/资金/形态），单维度指标不足以判断买卖时机。
+    source_type: expert_practice
+    rarity: 3
+    practicality: 5
+    actionability: 5
+    reusability: 3
+    how_it_changes_agent_behavior: >
+      Agent需要综合5个维度28个因子进行评分，不能只看单一指标。
+      每个因子需带置信度，低置信度因子降权。
+    evidence: [E001, E002]
+
+  - id: P002
+    statement: 非结构化自然语言投资想法可以通过LLM转换为结构化策略配置（因子条件+排名逻辑+交易模型+风控参数）。
+    source_type: engineering_practice
+    rarity: 4
+    practicality: 5
+    actionability: 5
+    reusability: 4
+    how_it_changes_agent_behavior: >
+      Agent需要解析自然语言→提取意图→映射到因子体系→生成多条件策略JSON。
+      策略必须包含选股条件、排名维度、买入规则、卖出规则、仓位管理。
+    evidence: [E002, E003]
+
+  - id: P003
+    statement: 回测引擎必须内置未来穿越防护——防止因子计算时使用未来数据，否则回测结果完全不可信。
+    source_type: engineering_practice
+    rarity: 4
+    practicality: 5
+    actionability: 5
+    reusability: 5
+    how_it_changes_agent_behavior: >
+      Agent在回测时必须严格按时间顺序计算因子，
+      每个时间点的因子值只能使用该时间点之前的数据。
+      需对exec作用域做分割，防止Python闭包捕获后续变量。
+    evidence: [E004]
+
+  - id: P004
+    statement: TA-Lib作为第三方依赖在生产环境不可靠（安装复杂、版本冲突）。应实现Mock TA-Lib兼容层。
+    source_type: engineering_practice
+    rarity: 3
+    practicality: 5
+    actionability: 5
+    reusability: 4
+    how_it_changes_agent_behavior: >
+      Agent应使用纯Python实现的指标计算，替代C扩展的TA-Lib。
+      提供兼容API，让社区策略代码无需修改即可运行。
+    evidence: [E004]
+
+  - id: P005
+    statement: A股数据源不可靠（频闭源/反爬/不稳定），必须实现多数据源降级架构（主→备→兜底三级）。
+    source_type: real_world_failure
+    rarity: 4
+    practicality: 5
+    actionability: 5
+    reusability: 4
+    how_it_changes_agent_behavior: >
+      Agent获取行情时先走腾讯API（零依赖），失败后自动降级到Akshare。
+      股票名称映射用本地缓存，减少对外部API的依赖。
+    evidence: [E005]
+
+  - id: P006
+    statement: K线图需要支持多周期切换（分时/5日/日K/周K/月K），且必须叠加MA均线、成交量等专业图表元素，否则对专业用户没有说服力。
+    source_type: user_feedback
+    rarity: 2
+    practicality: 5
+    actionability: 4
+    reusability: 2
+    how_it_changes_agent_behavior: >
+      Agent生成图表时必须根据周期类型选择对应的聚合周期和数据精度，
+      日K级别显示MA5/10/20/60，周K级别显示MA5/10/20。
+    evidence: [E001, E006]
+
+  - id: P007
+    statement: AI生成的策略JSON必须采用"四段式"结构（因子条件→排序规则→交易模型→风控参数），否则下游无法正确解析和执行。
+    source_type: engineering_practice
+    rarity: 4
+    practicality: 5
+    actionability: 5
+    reusability: 4
+    how_it_changes_agent_behavior: >
+      Agent生成策略时必须按四段式输出JSON，每段有固定的schema。
+      因子条件描述选股逻辑，排序规则描述评分权重，
+      交易模型描述买卖时机，风控参数约束仓位和风险。
+      缺少任何一段，回测引擎应拒绝执行。
+    evidence: [E002, E004]
+
+  - id: P008
+    statement: 多因子信号必须加权处理——MACD/RSI/布林带在同一方向时信号强度加倍，方向相反时应该降权等待确认，不能简单投票。
+    source_type: expert_practice
+    rarity: 4
+    practicality: 5
+    actionability: 5
+    reusability: 4
+    how_it_changes_agent_behavior: >
+      Agent在综合多个指标判断时，不采用简单的多数投票，
+      而是根据信号一致性程度加权：共振时强信号执行，
+      分歧时弱信号等待。避免杂音交易。
+    evidence: [E001]
+
+  - id: P009
+    statement: A股财务数据更新周期不统一（季报/半年报/年报），回测数据对齐时必须用填充法近似，不能因为数据缺失就跳过交易日。
+    source_type: real_world_failure
+    rarity: 3
+    practicality: 4
+    actionability: 4
+    reusability: 3
+    how_it_changes_agent_behavior: >
+      Agent处理财务数据时需识别更新周期，对未更新的交易日使用前值填充。
+      判断"数据是否足够新"根据报告类型（季报≤3个月、年报≤12个月）动态调整。
+    evidence: [E005]

@@ -1,0 +1,119 @@
+evidence:
+  - id: E001
+    title: 28因子量化引擎完整源码（quant_engine.py）
+    type: source_code
+    level: E2
+    path: /home/administrator/tools/ai-finance-agent/quant_engine.py
+    verified_by: project_team
+    sensitive: false
+    notes: 包含5维度28因子完整实现，纯Python无TA-Lib依赖。覆盖5525只A股。
+
+  - id: E002
+    title: AI策略生成管道（ai_strategy.py）
+    type: source_code
+    level: E2
+    path: /home/administrator/tools/ai-finance-agent/ai_strategy.py
+    verified_by: project_team
+    sensitive: false
+    notes: 自然语言→结构化策略的AI管道，DeepSeek API集成，输出JSON策略配置。
+
+  - id: E003
+    title: 生产环境部署 + 策略保存记录（4个策略）
+    type: real_world_trial
+    level: E3
+    path: http://122.51.110.50:8000
+    verified_by: project_team
+    sensitive: false
+    notes: >
+      已部署腾讯云公网可访问。strategies/目录已有4条策略保存记录，
+      证明有人（用户/评审）通过AI策略生成并保存了完整策略配置。
+      nginx反向代理+systemd服务管理。
+
+  - id: E008
+    title: 试用截图与策略回测演示
+    type: real_world_trial
+    level: E3
+    path: /mnt/c/Users/Administrator/Desktop/quant_trial_screenshots/
+    verified_by: project_team
+    sensitive: false
+    notes: >
+      包含策略编辑器操作截图、AI策略生成结果截图、回测报告截图。
+      可在评审现场提供完整截图文件供复核。
+
+  - id: E004
+    title: 回测引擎源码（services/backtest.py）
+    type: source_code
+    level: E2
+    path: /home/administrator/tools/ai-finance-agent/services/backtest.py
+    verified_by: project_team
+    sensitive: false
+    notes: 含未来穿越防护、Mock TA-Lib兼容、exec作用域分割、仓位管理模型。
+
+  - id: E005
+    title: 零依赖数据架构（data/quotes.py + data/data_router.py）
+    type: source_code
+    level: E2
+    path: /home/administrator/tools/ai-finance-agent/data/
+    verified_by: project_team
+    sensitive: false
+    notes: 腾讯行情API为主，Akshare降级，三级数据源保障。
+
+  - id: E006
+    title: 7个Vue 3前端页面完整实现
+    type: source_code
+    level: E2
+    path: /home/administrator/tools/ai-finance-agent/frontend/src/views/
+    verified_by: project_team
+    sensitive: false
+    notes: BuilderView/AnalyzeView/ScanView/AIStrategyView/BacktestView/StrategiesView/ScreenResultView。
+
+  - id: E007
+    title: GitHub仓库与README文档
+    type: open_source_repo
+    level: E1
+    path: https://github.com/qq1009128320-dotcom/ai-finance-agent
+    verified_by: public_repo
+    sensitive: false
+    notes: 完整README含功能总览、架构图、API文档、部署说明。
+
+claims:
+  - id: C001
+    claim: 28因子5维度量化引擎覆盖A股全市场，纯Python无第三方依赖。
+    evidence: [E001, E005]
+    verification:
+      - 检查quant_engine.py中28个因子的实现
+      - 检查是否依赖TA-Lib等第三方量化库
+      - 随机抽取5只股票验证因子计算
+    limitations:
+      - 因子有效性未经长期实盘验证
+
+  - id: C002
+    claim: 自然语言→结构化策略的AI管道，降低量化投资编程门槛。
+    evidence: [E002, E003]
+    verification:
+      - 用自然语言描述一个策略，检查输出的策略JSON结构
+      - 检查生成的策略是否可在回测引擎中运行
+    limitations:
+      - 策略质量取决于DeepSeek API的表现
+      - 输出策略需用户手动review
+
+  - id: C003
+    claim: 回测引擎内置未来穿越防护和Mock TA-Lib，结果可靠。
+    evidence: [E004]
+    verification:
+      - 检查exec作用域分割代码
+      - 检查未来穿越检测触发条件
+      - 用已知策略验证回测结果是否合理
+    limitations:
+      - 回测不代表实盘表现
+      - 尚未有模拟盘验证
+
+  - id: C004
+    claim: 已部署生产环境，6大功能页面完整可用。
+    evidence: [E003, E006]
+    verification:
+      - 访问 http://122.51.110.50:8000 检查前端页面
+      - 调用API验证单股分析/扫描/回测功能
+    limitations:
+      - 依赖腾讯行情API可用性
+      - 部分功能仅对30只样本股票验证
