@@ -176,13 +176,10 @@ class BacktestService:
         def _buy_fn(ctx, tl, s, p, r):
             if s in ctx.portfolio.positions:
                 return
-            if len(ctx._trade_dates) >= ctx.max_trades_per_day:
-                return
             if ctx.portfolio.cash < p * 100:
                 return
             ctx.portfolio.positions[s] = {"cost_price": p, "qty": 1}
             ctx.portfolio.cash -= p
-            ctx._trade_dates.append(s)
             tl.append({"day": len(tl), "type": "buy", "symbol": s, "price": p, "reason": r})
         
         def _sell_fn(ctx, tl, s, p, r):
