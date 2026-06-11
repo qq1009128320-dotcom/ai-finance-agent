@@ -172,6 +172,24 @@ class BacktestService:
         # 执行策略
         trades = []
         
+        # 交易辅助函数（简化lambda嵌套，避免语法歧义）
+        def _buy_fn(ctx, tl, s, p, r):
+            if s in ctx.portfolio.positions:
+                return
+            if len(ctx._trade_dates) >= ctx.max_trades_per_day:
+                return
+            if ctx.portfolio.cash < p * 100:
+                return
+            ctx.portfolio.positions[s] = {"cost_price": p, "qty": 1}
+            ctx.portfolio.cash -= p
+            ctx._trade_dates.append(s)
+            tl.append({"day": len(tl), "type": "buy", "symbol": s, "price": p, "reason": r})
+        
+        def _sell_fn(ctx, tl, s, p, r):
+            tl.append({"day": len(tl), "type": "sell", "symbol": s, "price": p, "reason": r})
+            ctx.portfolio.positions.pop(s, None)
+            ctx.portfolio.cash += p
+        
         try:
             # 解析策略代码:JSON配置自动转Python代码
             resolved_code = _resolve_code(request.code)
@@ -205,8 +223,8 @@ class BacktestService:
                 "pd": pd,
                 "get_kline": lambda s, **kw: df if s == symbol else None,
                 "context": context,
-                "buy": lambda s, p, r: None if s in context.portfolio.positions else (None if len(context._trade_dates) >= context.max_trades_per_day else (None if context.portfolio.cash < p * 100 else (lambda: (context.portfolio.positions.update({s: {"cost_price": p, "qty": 1}}), context.portfolio.__setattr__("cash", context.portfolio.cash - p), context._trade_dates.append(s), trades.append({"day": len(trades), "type": "buy", "symbol": s, "price": p, "reason": r}))()))),
-                "sell": lambda s, p, r: trades.append({"day": len(trades), "type": "sell", "symbol": s, "price": p, "reason": r}) or context.portfolio.positions.pop(s, None) or context.portfolio.__setattr__("cash", context.portfolio.cash + p),
+                "buy": lambda s, p, r: _buy_fn(context, trades, s, p, r),
+                "sell": lambda s, p, r: _sell_fn(context, trades, s, p, r),
             }
             exec(resolved_code, global_vars, local_vars)
             
