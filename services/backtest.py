@@ -176,16 +176,20 @@ class BacktestService:
         def _buy_fn(ctx, tl, s, p, r):
             if s in ctx.portfolio.positions:
                 return
-            if ctx.portfolio.cash < p * 100:
+            cost = p * 100  # 买入1手（100股）
+            if ctx.portfolio.cash < cost:
                 return
-            ctx.portfolio.positions[s] = {"cost_price": p, "qty": 1}
-            ctx.portfolio.cash -= p
+            ctx.portfolio.positions[s] = {"cost_price": p, "qty": 100}
+            ctx.portfolio.cash -= cost
             tl.append({"day": len(tl), "type": "buy", "symbol": s, "price": p, "reason": r})
         
         def _sell_fn(ctx, tl, s, p, r):
+            pos = ctx.portfolio.positions.get(s)
+            if not pos:
+                return
+            ctx.portfolio.cash += p * pos["qty"]
             tl.append({"day": len(tl), "type": "sell", "symbol": s, "price": p, "reason": r})
-            ctx.portfolio.positions.pop(s, None)
-            ctx.portfolio.cash += p
+            del ctx.portfolio.positions[s]
         
         try:
             # 解析策略代码:JSON配置自动转Python代码
@@ -277,18 +281,9 @@ class BacktestService:
             buy_trades = [t for t in trades if t["type"] == "buy"]
             sell_trades = [t for t in trades if t["type"] == "sell"]
             
-            # 计算收益率
-            if buy_trades:
-                cost = buy_trades[0]["price"]
-                if sell_trades:
-                    total_return = (sell_trades[-1]["price"] - cost) / cost * 100
-                else:
-                    # 未平仓:用最新价估算
-                    total_return = (close_prices[-1] - cost) / cost * 100
-            else:
-                total_return = 0
-            
-            final_capital = initial_capital * (1 + total_return / 100)
+            # 计算收益率(基于equity curve) - 在曲线构建后计算
+            total_return = 0.0
+            final_capital = initial_capital
             
             # 计算年化收益(用交易日数估算)
             num_days = len(close_prices)
@@ -327,13 +322,13 @@ class BacktestService:
                 day_sell = [t for t in trades if t.get("day") == i and t["type"] == "sell"]
                 
                 for t in day_buy:
-                    cash -= t["price"]
-                    position_cost += t["price"]
-                    position_qty += 1
+                    cash -= t["price"] * 100
+                    position_cost += t["price"] * 100
+                    position_qty += 100
                 for t in day_sell:
-                    cash += t["price"]
-                    position_cost = max(0, position_cost - t["price"])
-                    position_qty = max(0, position_qty - 1)
+                    cash += t["price"] * position_qty  # 全部平仓
+                    position_cost = 0
+                    position_qty = 0
                 
                 # 计算当日总资产 = 现金 + 持仓市值
                 position_value = position_qty * close_price if position_qty > 0 else 0
@@ -383,7 +378,16 @@ class BacktestService:
                 profit_factor = (gross_gain / gross_loss) if gross_loss > 0 else (gross_gain * 10 if gross_gain > 0 else 0.0)
             else:
                 profit_factor = 0.0
-            
+
+            # 计算实际收益率(基于equity curve的资金变化)
+            if len(full_equity_curve) > 0:
+                final_value = full_equity_curve[-1].value
+                total_return = (final_value - initial_capital) / initial_capital * 100
+                final_capital = final_value
+            else:
+                total_return = 0.0
+                final_capital = initial_capital
+
             # 沪深300基准对比
             benchmark_ret = _benchmark_return(df.index[0], df.index[-1])
             message = f"回测完成: {total_trades}笔交易"
