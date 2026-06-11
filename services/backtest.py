@@ -210,6 +210,12 @@ class BacktestService:
             }
             exec(resolved_code, global_vars, local_vars)
             
+            # 将策略中定义的工具函数(如calculate_rsi)合并到global_vars
+            # handle_data的__globals__指向global_vars,不合并则无法调用策略内其他函数
+            for k, v in local_vars.items():
+                if k not in ('__builtins__',) and callable(v):
+                    global_vars[k] = v
+            
             if "init" in local_vars:
                 local_vars["init"](context)
             
