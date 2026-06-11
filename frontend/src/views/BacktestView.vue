@@ -29,6 +29,10 @@
         </button>
         <button class="btn btn-secondary" @click="code = ''">🗑️ 清空</button>
       </div>
+      <label class="checkbox-label" style="display:flex;align-items:center;gap:8px;margin-top:12px;font-size:24px;color:var(--text-muted);cursor:pointer;">
+        <input type="checkbox" v-model="confirmed" style="width:20px;height:20px;cursor:pointer;" />
+        <span>我已了解：回测结果不代表实盘表现，投资有风险，入市需谨慎</span>
+      </label>
     </div>
 
     <!-- 回测结果 -->
@@ -151,6 +155,7 @@ const code = ref('')
 const symbol = ref('')
 const initialCapital = ref(100000)
 const running = ref(false)
+const confirmed = ref(false)
 const result = ref<BacktestResult | null>(null)
 const equityChartRef = ref<HTMLElement | null>(null)
 let equityChart: echarts.ECharts | null = null
@@ -302,6 +307,12 @@ async function handleRun() {
     return
   }
 
+  // 风险确认弹窗
+  if (!confirmed.value) {
+    store.setError('⚠️ 请先确认已阅读风险提示：点击"我已确认"按钮接受风险声明')
+    return
+  }
+
   running.value = true
   result.value = null
   
@@ -315,7 +326,8 @@ async function handleRun() {
     const response = await backtestApi.run({
       code: code.value,
       symbol: symbol.value,
-      initial_capital: initialCapital.value
+      initial_capital: initialCapital.value,
+      confirmed: true
     })
     result.value = response.data
     store.setBacktestResult(response.data)

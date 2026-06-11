@@ -45,10 +45,10 @@ export const strategyApi = {
 
 // 回测 API
 export const backtestApi = {
-  run: (data: { code: string; symbol: string; start_date?: string; end_date?: string; initial_capital?: number }) =>
+  run: (data: { code: string; symbol: string; start_date?: string; end_date?: string; initial_capital?: number; confirmed?: boolean }) =>
     api.post('/backtest/run', data),
-  
-  validateAndRun: (data: { code: string; symbol: string }) =>
+
+  validateAndRun: (data: { code: string; symbol: string; confirmed?: boolean }) =>
     api.post('/backtest/validate-and-run', data)
 }
 
