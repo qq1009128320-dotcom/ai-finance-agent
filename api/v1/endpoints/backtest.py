@@ -33,10 +33,13 @@ async def run_backtest(request: BacktestRequest):
 @router.post("/validate-and-run")
 async def validate_and_run_backtest(request: BacktestRequest):
     """
-    验证并运行回测
+    验证并运行回测（需要用户确认风险声明）
     
-    先验证策略代码，再执行回测。
+    先验证策略代码，确认用户已阅读风险提示，再执行回测。
+    required parameter: confirmed=True
     """
+    if not getattr(request, 'confirmed', False):
+        raise HTTPException(status_code=400, detail="请先确认已阅读风险提示：回测结果不代表实盘表现，投资有风险。")
     from services.strategy import strategy_service
     
     # 验证

@@ -176,6 +176,7 @@ class BacktestRequest(BaseModel):
     start_date: Optional[str] = None
     end_date: Optional[str] = None
     initial_capital: float = Field(100000.0, description="初始资金")
+    confirmed: bool = Field(False, description="用户已确认风险声明")
 
 
 class EquityPoint(BaseModel):
