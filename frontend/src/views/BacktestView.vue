@@ -151,7 +151,7 @@ import type { EChartsOption } from 'echarts'
 
 const store = useAppStore()
 
-const code = ref('')
+const code = ref('import numpy as np\n\n# 布林带反转策略示例\ndef init(context):\n    context.symbol = "600036"\n    context.stop_loss = -0.08\n    context.take_profit = 0.25\n    context.bb_period = 20\n    context.bb_std = 2\n\ndef handle_data(context, data):\n    symbol = context.symbol\n    current_price = data[symbol]["close"]\n    kline = get_kline(symbol, period="day", count=60)\n    if kline is None or len(kline) < 30:\n        return\n    close = kline["close"].values\n    sma = pd.Series(close).rolling(context.bb_period).mean().values\n    std = pd.Series(close).rolling(context.bb_period).std().values\n    lower = sma - context.bb_std * std\n    upper = sma + context.bb_std * std\n    position = context.portfolio.positions.get(symbol, None)\n    if position is None and len(lower) > 0 and current_price <= lower[-1]:\n        buy(symbol, current_price, "布林下轨买入")\n    if position is not None and len(upper) > 0 and current_price >= upper[-1]:\n        sell(symbol, current_price, "布林上轨卖出")\n    if position is not None:\n        cost = position["cost_price"]\n        if current_price <= cost * (1 + context.stop_loss):\n            sell(symbol, current_price, "止损卖出")')
 const symbol = ref('')
 const initialCapital = ref(100000)
 const running = ref(false)
