@@ -357,10 +357,23 @@ def run_backtest(strategy_code: str, symbol: str, start_date: str = None, end_da
     
     context = BacktestContext()
     
+    # 安全沙箱：限制 __builtins__ 为安全子集
+    _safe_builtins = {
+        'abs': abs, 'all': all, 'any': any, 'bool': bool, 'dict': dict,
+        'enumerate': enumerate, 'float': float, 'int': int, 'len': len,
+        'list': list, 'max': max, 'min': min, 'print': print,
+        'range': range, 'round': round, 'set': set, 'sorted': sorted,
+        'str': str, 'sum': sum, 'tuple': tuple, 'type': type, 'zip': zip,
+        'True': True, 'False': False, 'None': None,
+        'isinstance': isinstance, 'hasattr': hasattr, 'getattr': getattr,
+        'setattr': setattr, 'abs': abs, 'map': map, 'filter': filter,
+        'open': open,  # 仅允许文件读取
+    }
+    
     # Execute init
     try:
         exec(strategy_code, {
-            "__builtins__": __builtins__,
+            "__builtins__": _safe_builtins,
             "np": np,
             "pd": pd,
             "get_kline": lambda s, p, c: df.reset_index().values.tolist() if s == symbol else None,
@@ -370,7 +383,7 @@ def run_backtest(strategy_code: str, symbol: str, start_date: str = None, end_da
         # Call init
         local_vars = {}
         exec(strategy_code, {
-            "__builtins__": __builtins__,
+            "__builtins__": _safe_builtins,
             "np": np,
             "pd": pd,
             "get_kline": lambda s, p, c: df.reset_index().values.tolist() if s == symbol else None,

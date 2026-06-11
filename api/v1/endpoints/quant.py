@@ -32,8 +32,9 @@ async def get_kline_data(symbol: str = "600036", period: str = "day", count: int
         quote = data_service.get_quote(symbol)
         if quote and "name" in quote:
             name = quote["name"]
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"[quant/kline] get_kline error: {e}")
+        name = ""
 
     result_klines = []
     closes = []

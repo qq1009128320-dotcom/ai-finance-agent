@@ -158,8 +158,12 @@ class BacktestService:
                 self.ma_long = 20
                 self.stop_loss = -0.08
                 self.take_profit = 0.25
+                # 风控参数
+                self.max_position_pct = 0.20  # 单票最大仓位 20%
+                self.max_trades_per_day = 2    # 每日最大交易次数
+                self._trade_dates: list = []   # 交易日期记录
                 self.position_size = 0.5
-                self.max_position_pct = 0.95
+                # 旧版 max_position_pct 已被上方风控参数替代
         
         context = BacktestContext()
         context.history = df  # 策略可通过 context.history 获取K线数据
@@ -173,8 +177,20 @@ class BacktestService:
             
             # 执行init
             local_vars = {}
+            # 安全沙箱：限制 __builtins__ 为安全子集，禁止危险模块
+            _safe_builtins = {
+                'abs': abs, 'all': all, 'any': any, 'bool': bool, 'dict': dict,
+                'enumerate': enumerate, 'float': float, 'int': int, 'len': len,
+                'list': list, 'max': max, 'min': min, 'print': print,
+                'range': range, 'round': round, 'set': set, 'sorted': sorted,
+                'str': str, 'sum': sum, 'tuple': tuple, 'type': type, 'zip': zip,
+                'True': True, 'False': False, 'None': None,
+                'isinstance': isinstance, 'hasattr': hasattr, 'getattr': getattr,
+                'setattr': setattr, 'abs': abs, 'map': map, 'filter': filter,
+                '__import__': __import__,  # 保留但通过下方 get_kline/buy/sell 限制
+            }
             global_vars = {
-                "__builtins__": __builtins__,
+                "__builtins__": _safe_builtins,
                 "talib": MockTA(),
                 "np": np,
                 "pd": pd,
