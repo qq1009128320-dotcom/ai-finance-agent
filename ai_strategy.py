@@ -368,6 +368,15 @@ def run_backtest(strategy_code: str, symbol: str, start_date: str = None, end_da
         'isinstance': isinstance, 'hasattr': hasattr, 'getattr': getattr,
         'setattr': setattr, 'abs': abs, 'map': map, 'filter': filter,
     }
+    # 安全的 __import__
+    _SAFE_IMPORT_MODULES = {'numpy', 'pandas', 'json', 'math', 'random',
+                            'collections', 'datetime', 'decimal', 'itertools',
+                            'functools', 'operator', 're', 'typing'}
+    def _safe_import(name, *args, **kwargs):
+        if name.split('.')[0] not in _SAFE_IMPORT_MODULES:
+            raise ImportError(f"模块 '{name}' 不在安全导入列表中，禁止导入")
+        return __import__(name, *args, **kwargs)
+    _safe_builtins['__import__'] = _safe_import
     
     # Execute init
     try:
