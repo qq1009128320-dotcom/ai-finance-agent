@@ -106,6 +106,18 @@ app.add_middleware(
 app.include_router(api_router, prefix=settings.API_V1_PREFIX)
 
 
+# 健康检查（必须放在通配 SPA 路由之前）
+@app.get("/health")
+async def health():
+    """健康检查"""
+    from datetime import datetime
+    return {
+        "status": "ok",
+        "version": settings.APP_VERSION,
+        "timestamp": datetime.now().isoformat(),
+    }
+
+
 # 生产模式：挂载前端静态文件 + SPA 路由支持
 if IS_PRODUCTION:
     FRONTEND_DIST = PROJECT_ROOT / "frontend" / "dist"
@@ -155,17 +167,6 @@ if not IS_PRODUCTION:
             "api": "/api/v1",
         }
 
-
-# 健康检查（需要放在通配路由之前）
-@app.get("/health")
-async def health():
-    """健康检查"""
-    from datetime import datetime
-    return {
-        "status": "ok",
-        "version": settings.APP_VERSION,
-        "timestamp": datetime.now().isoformat(),
-    }
 
 
 if __name__ == "__main__":
